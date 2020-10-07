@@ -1,7 +1,7 @@
 # Ignore the following directories and files:
 /ignored/*
 /storage/*
-#paths.py
+paths.py
 
 # Private files (e.g. sontaining private data information)
 *_private.py
