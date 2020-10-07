@@ -44,7 +44,7 @@ class Agent:
     def perform_training_epoch(self, optimizer, loss_f, train_dataloader, 
         print_run_loss=False):
         acc = Accumulator('loss')
-        for i, data in enumerate(train_dataloader):
+        for _, data in enumerate(train_dataloader):
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 

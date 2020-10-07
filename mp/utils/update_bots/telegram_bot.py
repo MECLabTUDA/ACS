@@ -6,7 +6,6 @@
 # Then, place these strings in a telegram_login.json file in this directory. 
 # That file is ignored by git.
 # ------------------------------------------------------------------------------
-#%%
 import telegram as tel
 from mp.utils.load_restore import load_json, join_path
 

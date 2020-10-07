@@ -28,7 +28,7 @@ class ScoreAbstract:
         raise NotImplementedError
 
 class ScoreDice(ScoreAbstract):
-    def eval(tp, tn, fn, fp):
+    def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fn+fp > 0:
                 return 0.
@@ -37,7 +37,7 @@ class ScoreDice(ScoreAbstract):
         return (2*tp)/(2*tp+fp+fn)
 
 class ScoreIoU(ScoreAbstract):
-    def eval(tp, tn, fn, fp):
+    def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fn+fp > 0:
                 return 0.
@@ -46,7 +46,7 @@ class ScoreIoU(ScoreAbstract):
         return tp/(tp+fp+fn)
 
 class ScorePrecision(ScoreAbstract):
-    def eval(tp, tn, fn, fp):
+    def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fp > 0:
                 return 0.
@@ -58,7 +58,7 @@ class ScorePPV(ScorePrecision):
     pass
 
 class ScoreRecall(ScoreAbstract):
-    def eval(tp, tn, fn, fp):
+    def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fp > 0:
                 return 0.
@@ -73,7 +73,7 @@ class ScoreTPR(ScoreRecall):
     pass
 
 class ScoreSpecificity(ScoreAbstract):
-    def eval(tp, tn, fn, fp):
+    def eval(self, tp, tn, fn, fp):
         if tn == 0:
             if fp > 0:
                 return 0.
@@ -93,7 +93,7 @@ def get_mean_scores(target, pred, metrics=['ScoreDice', 'ScoreIoU'],
     """
     scores = {metric: dict() for metric in metrics}
     # Calculate metric values per each class
-    metrics = {metric: globals()[metric] for metric in metrics}
+    metrics = {metric: globals()[metric]() for metric in metrics}
     for label_nr, label_name in enumerate(label_names):
         tp, tn, fn, fp = get_tp_tn_fn_fp(target, pred, class_ix=label_nr)
         for metric_key, metric_f in metrics.items():

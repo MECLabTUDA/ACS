@@ -42,7 +42,7 @@ class DecathlonProstateT2(SegmentationDataset):
         if merge_labels:
             label_names = ['background', 'prostate']
         else:
-            label_names = ['background', 'central gland', 'peripheral zone']
+            label_names = ['background', 'peripheral zone', 'central gland']
         super().__init__(instances, name=global_name, label_names=label_names, 
             modality='MR', nr_channels=1, hold_out_ixs=[])
   

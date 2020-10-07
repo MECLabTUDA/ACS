@@ -10,7 +10,10 @@
 import random
 import math
   
-def split_dataset(dataset, test_ratio=0.2, val_ratio=0.2, nr_repetitions=5, cross_validation=True, respecting_groups=True):
+def split_dataset(
+    dataset, test_ratio=0.2, val_ratio=0.2, 
+    nr_repetitions=5, cross_validation=True, 
+    respecting_groups=True):
     """
     :param test_ratio: ratio of instances from 'dataset' for testing
     :param val_ratio: ratio of non-test instances from 'dataset' for validation

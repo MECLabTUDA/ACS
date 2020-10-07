@@ -17,7 +17,9 @@ matplotlib==3.2.1
 seaborn==0.10.1
 tensorboard==2.2.1
 mypy==0.770
+pylint==2.6.0
 simpleitk==1.2.4
 torch-summary==1.2.0
 torchio==0.17.46
 pexpect==4.8.0
+python-telegram-bot==12.8
