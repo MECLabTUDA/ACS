@@ -6,7 +6,6 @@
 
 from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.metrics_segmentation import get_mean_scores
-from mp.data.pytorch.transformation import per_label_channel
 
 def dl_losses(dl, agent, loss_f):
     acc = Accumulator()
@@ -36,7 +35,6 @@ def dl_metrics(dl, agent, metrics):
             acc.add(key, value, count=len(inputs))
     return acc
 
-import numpy as np
 def ds_losses(ds, agent, loss_f):
     """
     returns: {loss -> {subject_name -> value}}}, with 2 additional entries per 

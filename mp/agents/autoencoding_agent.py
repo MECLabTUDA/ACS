@@ -3,7 +3,6 @@
 # ------------------------------------------------------------------------------
 
 from mp.agents.agent import Agent
-from mp.eval.inference.predict import softmax
 
 class AutoencodingAgent(Agent):
     def __init__(self, *args, **kwargs):
