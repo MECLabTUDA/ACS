@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from mp.experiment.experiment import Experiment
+from mp.experiments.experiment import Experiment
 from mp.eval.result import Result
 from mp.utils.load_restore import load_json
 from mp.paths import storage_path

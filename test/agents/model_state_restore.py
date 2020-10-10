@@ -30,7 +30,7 @@ def test_restore_model_state_and_eval():
             metrics=['ScoreDice'])
 
     # Restore model state
-    agent.restore_state(states_path='test/storage/agent_states_prostate_2D', state_name="epoch_300")
+    agent.restore_state(states_path='test/test_obj/agent_states_prostate_2D', state_name="epoch_300")
 
     # Calculate metrics and compare
     loss_g = LossDice(1e-05)

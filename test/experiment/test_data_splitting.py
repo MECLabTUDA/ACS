@@ -1,6 +1,6 @@
 from mp.data.datasets.dataset import Dataset
 from mp.data.datasets.dataset_classification import ClassificationPathInstance
-from mp.experiment.data_splitting import split_instances, create_instance_folds, split_dataset
+from mp.experiments.data_splitting import split_instances, create_instance_folds, split_dataset
 
 def test_split_instances():
     instances = []

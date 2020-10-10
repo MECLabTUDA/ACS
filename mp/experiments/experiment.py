@@ -16,7 +16,7 @@ from mp.utils.helper_functions import get_time_string
 import mp.utils.load_restore as lr
 import mp.utils.pytorch.pytorch_load_restore as ptlr
 from mp.visualization.plot_results import plot_results
-from mp.experiment.data_splitting import split_dataset
+from mp.experiments.data_splitting import split_dataset
 from mp.paths import storage_path
 from mp.data.data import Data
 
