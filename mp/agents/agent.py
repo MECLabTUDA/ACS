@@ -10,10 +10,21 @@ from mp.utils.load_restore import pkl_dump, pkl_load
 from mp.utils.pytorch.pytorch_load_restore import save_model_state, load_model_state, save_optimizer_state, load_optimizer_state
 from mp.eval.inference.predict import arg_max
 from mp.eval.evaluate import ds_losses_metrics
-import sys
 
 class Agent:
+    r"""An Agent, which includes a model and extended fields and logic.
 
+    Args:
+        model (mp.models.model.Model): a model
+        label_names (list[str]): a list of label names
+        metrics (list[str]): a list of metric names. Metric names are class 
+            names for descendants of mp.eval.metrics.scores.ScoreAbstract
+        device (str): 'cpu' or a cuda-enabled gpu, e.g. 'cuda:0'
+        scores_label_weights (tuple[float]): weights for each label to calculate
+            metrics (not for the loss, which is defined in the loss definition).
+            For instance, to explude "non-cares" from the metric calculation.
+        verbose (bool): whether certain info. should be printed during training
+    """
     def __init__(self, model, label_names=None, metrics=[], device='cuda:0', 
         scores_label_weights=None, verbose=True):
         self.model = model

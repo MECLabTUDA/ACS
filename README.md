@@ -7,4 +7,7 @@ To install with Anaconda:
 4. Execute 'pip install -r requirements.txt'
 5. Execute 'pytest' to test the correct installation. Note that one of the tests will test whether at least one GPU is present, if you do not wish to test this mark to ignore. Tests that use datasets are marked as ignored.
 
-When using pylint, unnecesary torch and numpy errors appear. To avoid, include generated-members=numpy.*,torch.* in the .pylintrc file.
+When using pylint, unnecesary torch and numpy warnings appear. To avoid, include generated-members=numpy.*,torch.* in the .pylintrc file.
+
+
+Please take into account the style conventions in style_conv.py

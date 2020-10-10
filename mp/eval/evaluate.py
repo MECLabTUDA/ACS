@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------------------
 
 from mp.eval.accumulator import Accumulator
-from mp.eval.metrics.metrics_segmentation import get_mean_scores
+from mp.eval.metrics.mean_scores import get_mean_scores
 
 def dl_losses(dl, agent, loss_f):
     acc = Accumulator()

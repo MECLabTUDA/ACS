@@ -1,9 +1,9 @@
 import numpy as np
+import pytest
 from mp.data.datasets.dataset_classification import CIFAR10
 from mp.data.pytorch.pytorch_class_dataset import ImgClassificationDataset
 from mp.utils.pytorch.compute_normalization_values import normalization_values
 
-import pytest
 pytest.mark.skip(reason="To test, download the CIFAR10 dataset in .png form.")
 def test_normalization_values():
     dataset = CIFAR10()

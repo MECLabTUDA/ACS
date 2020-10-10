@@ -1,5 +1,5 @@
 import torch
-from mp.eval.metrics.metrics_segmentation import get_tp_tn_fn_fp, get_mean_scores
+from mp.eval.metrics.mean_scores import get_tp_tn_fn_fp_segmentation, get_mean_scores
 
 A_1=[[0,0,0,0,0,0,0],
     [0,1,3,3,0,1,0],
@@ -50,10 +50,10 @@ a = a.unsqueeze(0)
 b = b.unsqueeze(0)
 
 def test_tp_tn_fn_fp():
-    assert get_tp_tn_fn_fp(a, b, 0) == (64, 20, 9, 19)
-    assert get_tp_tn_fn_fp(a, b, 1) == (7, 91, 9, 5)
-    assert get_tp_tn_fn_fp(a, b, 2) == (8, 94, 6, 4)
-    assert get_tp_tn_fn_fp(a, b, 3) == (2, 100, 7, 3)
+    assert get_tp_tn_fn_fp_segmentation(a, b, 0) == (64, 20, 9, 19)
+    assert get_tp_tn_fn_fp_segmentation(a, b, 1) == (7, 91, 9, 5)
+    assert get_tp_tn_fn_fp_segmentation(a, b, 2) == (8, 94, 6, 4)
+    assert get_tp_tn_fn_fp_segmentation(a, b, 3) == (2, 100, 7, 3)
 
 def test_dice_iou():
     scores = get_mean_scores(a, b, metrics=['ScoreDice', 'ScoreIoU'], label_names=['0', '1', '2', '3'])
@@ -73,10 +73,10 @@ def test_weighted_metrics():
         assert abs(value - scores[key]) <= 0.01
 
 def test_batched_tp_tn_fn_fp():
-    assert get_tp_tn_fn_fp(a_batch, b_batch, 0) == (64*3, 20*3, 9*3, 19*3)
-    assert get_tp_tn_fn_fp(a_batch, b_batch, 1) == (7*3, 91*3, 9*3, 5*3)
-    assert get_tp_tn_fn_fp(a_batch, b_batch, 2) == (8*3, 94*3, 6*3, 4*3)
-    assert get_tp_tn_fn_fp(a_batch, b_batch, 3) == (2*3, 100*3, 7*3, 3*3)
+    assert get_tp_tn_fn_fp_segmentation(a_batch, b_batch, 0) == (64*3, 20*3, 9*3, 19*3)
+    assert get_tp_tn_fn_fp_segmentation(a_batch, b_batch, 1) == (7*3, 91*3, 9*3, 5*3)
+    assert get_tp_tn_fn_fp_segmentation(a_batch, b_batch, 2) == (8*3, 94*3, 6*3, 4*3)
+    assert get_tp_tn_fn_fp_segmentation(a_batch, b_batch, 3) == (2*3, 100*3, 7*3, 3*3)
 
 def test_batched_metrics():
     scores = get_mean_scores(a_batch, b_batch, metrics=['ScoreDice', 'ScoreIoU'], label_names=['0', '1', '2', '3'], label_weights={'0':2, '1':1, '2':0, '3':1})

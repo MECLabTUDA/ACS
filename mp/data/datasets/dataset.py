@@ -10,6 +10,7 @@ class Dataset:
         """
         :param name: name of a dataset
         :param instances: list of Instance objects
+        :param classes: tuple with label names
         :param hold_out_ixs: instances which will not be evaluated until the end 
         :param mean_shape: mean input shape
         :param output_shape: output shape
