@@ -9,6 +9,7 @@ from IPython import get_ipython
 get_ipython().magic('load_ext autoreload') 
 get_ipython().magic('autoreload 2')
 
+import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
@@ -105,9 +106,9 @@ optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 results = Result(name='training_trajectory')   
 agent = SegmentationAgent(model=model, label_names=label_names, device=device)
 agent.train(results, optimizer, loss_f, train_dataloader=dl,
-    init_epoch=0, nr_epochs=50, run_loss_print_interval=5,
-    eval_datasets=datasets, eval_interval=5, 
-    save_path=exp_run.paths['states'], save_interval=5)
+    init_epoch=0, nr_epochs=3, run_loss_print_interval=1,
+    eval_datasets=datasets, eval_interval=1, 
+    save_path=exp_run.paths['states'], save_interval=1)
 
 #%% 10. Save and print results for this experiment run
 exp_run.finish(results=results)
@@ -124,3 +125,5 @@ vis.plot_3d_subject_pred(subject, pred)
 # Save the predicted mask to compare the 3D rendering to the ground truth in 
 # a program such as SimpleITK
 ##nifty_dump(pred, name='pred_epoch_300', path='storage/agent_states_prostate_2D_5')
+
+# %%

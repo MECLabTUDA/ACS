@@ -93,6 +93,8 @@ class ExperimentRun:
     def _set_paths(self, exp_path):
         paths = dict()
         paths['root'] = os.path.join(exp_path, str(self.run_ix))
+        if os.path.exists(paths['root']):
+            shutil.rmtree(paths['root'])
         os.mkdir(paths['root'])
         for subpath in ['results', 'states', 'obj', 'tmp']:
             paths[subpath] = os.path.join(paths['root'], subpath)
