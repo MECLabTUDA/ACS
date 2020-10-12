@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# From a SegmentationDataset, create a torch.utils.data.Dataset.
-# There are different types of datasets:
+# From an mp.data.datasets.dataset_segmentation.SegmentationDataset, create a 
+# mp.data.pytorch.PytorchDataset. There are different types of datasets:
 #
 # PytorchSeg2DDataset: the length of the dataset is the total number of slices 
 # (forth dimension) in the data base. A resized slice is returned by __getitem__
@@ -14,7 +14,6 @@
 # ------------------------------------------------------------------------------
 
 import copy
-from PIL import Image
 import torch
 import torchio
 from mp.data.pytorch.pytorch_dataset import PytorchDataset
@@ -24,17 +23,19 @@ import mp.eval.inference.predictor as pred
 class PytorchSegmnetationDataset(PytorchDataset):
     def __init__(self, dataset, ix_lst=None, size=None, norm_key='rescaling', 
         aug_key='standard', channel_labels=True):
-        """A torch.utils.data.Dataset for segmnetation data.
-        Arguments:
-        dataset (SegmentationDataset): a mp.data.datasets.SegmentationDataset
-        ix_lst (list(int)): list specifying the instances of 'dataset'. If 
-            'None', all which are not in the hold-out dataset are incuded.
-        size (tuple(int)): size as (channels, width, height, optional(depth))
-        channel_labels bool: if True, the output has one channel per label
+        r"""A torch.utils.data.Dataset for segmentation data.
+        Args:
+            dataset (SegmentationDataset): a SegmentationDataset
+            ix_lst (list[int)]): list specifying the instances of the dataset. 
+                If 'None', all not in the hold-out dataset are incuded.
+            size (tuple[int]): size as (channels, width, height, Opt(depth))
+            norm_key (str): Normalization strategy, from 
+                mp.data.pytorch.transformation
+            aug_key (str): Augmentation strategy, from 
+                mp.data.pytorch.transformation
+            channel_labels (bool): if True, the output has one channel per label
         """
-        super().__init__(dataset=dataset, ix_lst=ix_lst, resize=None, 
-            transform_lst=[], norm=None)
-        self.size = size
+        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size)
         self.norm = trans.NORMALIZATION_STRATEGIES[norm_key]
         self.aug = trans.AUGMENTATION_STRATEGIES[aug_key]
         self.nr_labels = dataset.nr_labels
@@ -42,7 +43,7 @@ class PytorchSegmnetationDataset(PytorchDataset):
         self.predictor = None
 
     def get_instance(self, ix=None, name=None):
-        """Get a particular instance from the ix or name"""
+        r"""Get a particular instance from the ix or name"""
         assert ix is None or name is None
         if ix is None:
             instance = [ex for ex in self.instances if ex.name == name]
@@ -52,9 +53,11 @@ class PytorchSegmnetationDataset(PytorchDataset):
             return self.instances[ix]
 
     def get_ix_from_name(self, name):
+        r"""Get ix from name"""
         return next(ix for ix, ex in enumerate(self.instances) if ex.name == name)
 
     def transform_subject(self, subject):
+        r"""Tranform a subject by applying normalization and augmentation ops"""
         if self.norm is not None:
             subject = self.norm(subject)
         if self.aug is not None:
@@ -62,13 +65,13 @@ class PytorchSegmnetationDataset(PytorchDataset):
         return subject
 
     def get_subject_dataloader(self, subject_ix):
-        """Get a list of input/target pairs equivalent to those if the dataset
-        was only of subject with index subject_ix.
+        r"""Get a list of input/target pairs equivalent to those if the dataset
+        was only of subject with index subject_ix. For evaluation purposes.
         """
         raise NotImplementedError
 
 class PytorchSeg2DDataset(PytorchSegmnetationDataset):
-    """Divides images into 2D slices. If resize=True, the slices are resized to
+    r"""Divides images into 2D slices. If resize=True, the slices are resized to
     the specified size, otherwise they are center-cropped and padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
@@ -124,7 +127,7 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
         return dl_items
 
 class PytorchSeg3DDataset(PytorchSegmnetationDataset):
-    """Each 3D image is an item in the dataloader. If resize=True, the volumes
+    r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
     are resized to the specified size, otherwise they are center-cropped and 
     padded if needed.
     """
@@ -167,7 +170,7 @@ class PytorchSeg3DDataset(PytorchSegmnetationDataset):
         return [(x.unsqueeze_(0), y.unsqueeze_(0))]
 
 class Pytorch3DQueue(PytorchSegmnetationDataset):
-    """Divides images into patches. If there are subjects with less depth than 
+    r"""Divides images into patches. If there are subjects with less depth than 
     self.size[-1], these are padded.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), sampler=None,

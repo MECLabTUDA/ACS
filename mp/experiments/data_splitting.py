@@ -1,9 +1,9 @@
 # ------------------------------------------------------------------------------
-# A dataset is split into train, validation and test sets. This splitting can be 
-# performed at random, for instance to perform n repetitions, or through 
+# A dataset is split into train, validation and test sets. This splitting can be
+# performed at random, for instance to perform n repetitions, or through
 # cross-validation. Each repetition or fold is used for a different
 # experiment run. The indexes for each split are stored in a 'splits.json' file.
-# A hold-out test dataset may be kept which is always the same and initialized 
+# A hold-out test dataset may be kept which is always the same and initialized
 # together with a Dataset instance.
 # ------------------------------------------------------------------------------
 

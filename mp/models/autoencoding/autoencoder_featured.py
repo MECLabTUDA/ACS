@@ -1,3 +1,7 @@
+# ------------------------------------------------------------------------------
+# An autoencoder that reconstructs extracted features.
+# ------------------------------------------------------------------------------
+
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F

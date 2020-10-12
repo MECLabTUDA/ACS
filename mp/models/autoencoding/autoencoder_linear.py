@@ -2,6 +2,7 @@
 # A linear autoencoder. Note that the input must be normalized between
 # 0 and 1.
 # ------------------------------------------------------------------------------
+
 from functools import reduce
 import torch
 import torch.nn as nn

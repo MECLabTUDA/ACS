@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Collection of loss metrics to compare whole 1-channel segmentation masks.
+# Collection of metrics to compare whole 1-channel segmentation masks.
 # Metrics receive two 1-channel integer arrays.
 # ------------------------------------------------------------------------------
 

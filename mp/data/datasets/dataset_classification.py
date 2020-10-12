@@ -8,7 +8,7 @@ import mp.data.datasets.dataset_utils as du
 from mp.paths import original_data_paths
 
 class ClassificationPathInstance(Instance):
-    """Instance class where x is a path and y is an integer label corr. to
+    r"""Instance class where x is a path and y is an integer label corr. to
     an index of the dataset 'classes' field.
     """
     def __init__(self, x_path, y, name=None, group_id=None):
@@ -17,7 +17,7 @@ class ClassificationPathInstance(Instance):
         super().__init__(x=x_path, y=y, class_ix=y, name=name, group_id=group_id)
 
 class SplitClassImageDataset(Dataset):
-    """Classification Dataset with the structure root/split/class/filename,
+    r"""Classification Dataset with the structure root/split/class/filename,
     where 'split' is test for the hold-out test dataset and train for the rest.
     The instances are of the type 'PathInstance'.
     """
@@ -42,6 +42,8 @@ class SplitClassImageDataset(Dataset):
         hold_out_ixs=list(range(hold_out_start, len(instances))))
         
 class CIFAR10(SplitClassImageDataset):
+    r"""The Cifar10 dataset.
+    """
     def __init__(self, root_path=None):
         super().__init__(name='Cifar10', root_path=root_path, 
         input_shape=(3, 32, 32), 

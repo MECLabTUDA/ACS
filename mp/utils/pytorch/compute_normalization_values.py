@@ -1,7 +1,9 @@
 # ------------------------------------------------------------------------------
-# PyTorch requires the mean and standard deviation to be calculated manually for
-# normalization. This method can be used for that.
+# Torchvision requires the mean and standard deviation to be calculated manually 
+# for normalization. This method can be used for that. However, this is mainly 
+# for colored 2D images and therefore rarely relevant for medical data.
 # ------------------------------------------------------------------------------
+
 import torch
 
 def normalization_values(dataset):

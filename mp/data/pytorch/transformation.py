@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# Mainly, transformations from the TorchIO library are used 
-# (https://torchio.readthedocs.io/transforms)
+# Tensor transformations. Mainly, transformations from the TorchIO library are 
+# used (https://torchio.readthedocs.io/transforms).
 # ------------------------------------------------------------------------------
 
 import torch
@@ -45,6 +45,9 @@ AUGMENTATION_STRATEGIES = {'none':None,
 }
 
 def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
+    r"""Trans. a one-channeled mask where the integers specify the label to a 
+    multi-channel output with one channel per label, where 1 marks belonging to
+    that label."""
     masks = []
     zeros = torch.zeros(y.shape, dtype=torch.float64).to(device)
     ones = torch.ones(y.shape, dtype=torch.float64).to(device)
@@ -55,6 +58,7 @@ def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
     return target
 
 def _one_output_channel_single(y):
+    r"""Helper function."""
     channel_dim = 0
     target_shape = list(y.shape)
     nr_labels = target_shape[channel_dim]
@@ -67,8 +71,9 @@ def _one_output_channel_single(y):
     return target
 
 def one_output_channel(y, channel_dim=0):
-    """Inverses the operation of 'per_label_channel'. Is stricter than making
-    a prediction because the content must be 1 and not the largest float."""
+    r"""Inverses the operation of 'per_label_channel'. The output is 
+    one-channelled. It is stricter than making a prediction because the content 
+    must be 1 and not the largest float."""
     if channel_dim == 0:
         return _one_output_channel_single(y)
     else:
@@ -77,6 +82,7 @@ def one_output_channel(y, channel_dim=0):
     return torch.stack(batch, dim=0)
 
 def resize_2d(img, size=(1, 128, 128), label=False):
+    r"""2D resize."""
     img.unsqueeze_(0) # Add additional batch dimension so input is 4D
     if label:
         # Interpolation in 'nearest' mode leaves the original mask values.
@@ -86,6 +92,7 @@ def resize_2d(img, size=(1, 128, 128), label=False):
     return img[0]
 
 def resize_3d(img, size=(1, 56, 56, 56), label=False):
+    r"""3D resize."""
     img.unsqueeze_(0) # Add additional batch dimension so input is 5D
     if label:
         # Interpolation in 'nearest' mode leaves the original mask values.
@@ -95,7 +102,7 @@ def resize_3d(img, size=(1, 56, 56, 56), label=False):
     return img[0]
 
 def centre_crop_pad_2d(img, size=(1, 128, 128)):
-    """Center-crops to the specified size, unless the image is to small in some
+    r"""Center-crops to the specified size, unless the image is to small in some
     dimension, then padding takes place.
     """
     img = torch.unsqueeze(img, -1)
@@ -107,13 +114,17 @@ def centre_crop_pad_2d(img, size=(1, 128, 128)):
     return img
 
 def centre_crop_pad_3d(img, size=(1, 56, 56, 56)):
+    r"""Center-crops to the specified size, unless the image is to small in some
+    dimension, then padding takes place. For 3D data.
+    """
     transform = torchio.transforms.CropOrPad(target_shape=size[1:], padding_mode=0)
     device = img.device
     img = transform(img.cpu()).to(device)
     return img
 
-import sys
 def pad_3d_if_required(instance, size):
+    r"""Pads if required in the last dimension, for 3D.
+    """
     if instance.shape[-1] < size[-1]:
         delta = size[-1]-instance.shape[-1]
         subject = instance.get_subject()
@@ -127,7 +138,7 @@ def pad_3d_if_required(instance, size):
 from torchvision import transforms
 
 def torchvision_rescaling(x, size=(3, 224, 224), resize=False):
-    """To use pretrained torchvision models, three-channeled 2D images must 
+    r"""To use pretrained torchvision models, three-channeled 2D images must 
     first be normalized between 0 and 1 and then noralized with predfined values
     (see https://pytorch.org/docs/stable/torchvision/models.html)
     """

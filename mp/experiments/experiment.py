@@ -1,10 +1,10 @@
 # ------------------------------------------------------------------------------
 # Experiment class that tracks experiments with different configurations.
-# The idea is that if multiple experiments are performed, all intermediate 
-# stored files and model states are within a directory for that experiment. In 
-# addition, the experiment directory contains the config.json file with the 
-# original configuration, as well as the splitting of the dataset for each fold. 
-# When multiple repetitions, for instance within cross-validation, are 
+# The idea is that if multiple experiments are performed, all intermediate
+# stored files and model states are within a directory for that experiment. In
+# addition, the experiment directory contains the config.json file with the
+# original configuration, as well as the splitting of the dataset for each fold.
+# When multiple repetitions, for instance within cross-validation, are
 # performed, all files are within the experiment directory.
 # ------------------------------------------------------------------------------
 

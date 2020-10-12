@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------
 # A Predictor makes a prediction for a subject index that has the same size
-# as the subject's target. It reverses the trandormation operations perfomed 
-# so that inputs can be passed through the mdoel. It, for instance, merges 
+# as the subject's target. It reverses the trandormation operations performed
+# so that inputs can be passed through the model. It, for instance, merges
 # patches and 2D slices into 3D volumes of the original size.
 # ------------------------------------------------------------------------------
 

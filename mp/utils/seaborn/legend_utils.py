@@ -1,3 +1,7 @@
+# ------------------------------------------------------------------------------
+# Functions to style Seaborn plots.
+# ------------------------------------------------------------------------------
+
 import matplotlib.patches as mpatches
 
 def _remove_empyties_and_duplicates(handles, labels, titles):

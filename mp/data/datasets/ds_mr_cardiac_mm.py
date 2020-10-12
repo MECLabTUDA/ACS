@@ -105,9 +105,9 @@ def _extract_segmented_slices(source_path, target_path):
     │ │ ├── <study name>_ES_gt.nii.gz
     │ │ └── ...
 
-    Arguments:
-    original_data_path (str): path to MM_Challenge_dataset, where the metadata 
-        file has been converted to csv.
+    Args:
+        original_data_path (str): path to MM_Challenge_dataset, where the 
+        metadata file has been converted to csv.
     """
     # Fetch metadata
     csv_info = os.path.join(source_path, "M&Ms Dataset Information.csv")

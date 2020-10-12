@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# These UNet helper function were taken from https://github.com/fepegar/unet
+# These UNet helper functions were taken from https://github.com/fepegar/unet
 # (see https://zenodo.org/record/3522306#.X0FJnhmxVhE) in order to more easily
 # make changes.
 # ------------------------------------------------------------------------------

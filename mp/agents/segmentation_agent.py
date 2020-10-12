@@ -1,18 +1,19 @@
 # ------------------------------------------------------------------------------
-# A standard segmentation agent.
+# A standard segmentation agent, which performs softmax in the outputs.
 # ------------------------------------------------------------------------------
 
 from mp.agents.agent import Agent
 from mp.eval.inference.predict import softmax
 
 class SegmentationAgent(Agent):
+    r"""An Agent for segmentation models."""
     def __init__(self, *args, **kwargs):
         if 'metrics' not in kwargs:
             kwargs['metrics'] = ['ScoreDice', 'ScoreIoU']
         super().__init__(*args, **kwargs)
 
     def get_outputs(self, inputs):
-        # Apply a softmax transformation to the model outputs
+        r"""Applies a softmax transformation to the model outputs"""
         outputs = self.model(inputs)
         outputs = softmax(outputs)
         return outputs

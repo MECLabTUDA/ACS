@@ -14,7 +14,8 @@ class ConfusionMatrix:
     def add(self, predicted, actual, count=1):
         self.cm[actual][predicted] += count
 
-    def plot(self, path, name='confusion_matrix', label_predicted='Predicted', label_actual='Actual', figure_size=(7,5), annot=True):
+    def plot(self, path, name='confusion_matrix', label_predicted='Predicted', 
+        label_actual='Actual', figure_size=(7,5), annot=True):
         cm = self.cm.copy()
         nr_rows = len(cm)
         cm.insert(0, [0]*nr_rows)
@@ -24,7 +25,8 @@ class ConfusionMatrix:
         sns.set(rc={'figure.figsize':figure_size})
         ax = sns.heatmap(df, annot=annot)
         ax.set(xlabel=label_predicted, ylabel=label_actual)
-        plt.savefig(os.path.join(path, name+'.png'), facecolor='w', bbox_inches="tight", dpi = 300)
+        plt.savefig(os.path.join(path, name+'.png'), facecolor='w', 
+            bbox_inches="tight", dpi = 300)
         
     def get_accuracy(self):
         correct = sum([self.cm[i][i] for i in range(len(self.cm))])

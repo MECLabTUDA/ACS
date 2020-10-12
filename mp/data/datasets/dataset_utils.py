@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Utils for binding datasets as SegmentationDataset subclasses.
+# Utils for binding datasets as Dataset subclasses.
 # ------------------------------------------------------------------------------
 
 import numpy as np
@@ -28,12 +28,10 @@ def get_mean_std_shape(instances):
     r"""Returns the mean sheap as (channels, width, heigth, depth) for a 
     list of instances.
 
-    Arguments:
-    instances (list(mp.data.datasets.dataset.dataset_segmentation.SegmentationInstance)): a 
-        list of segmentation instances.
+    Args:
+        instances (list[SegmentationInstance]): a list of segmentation instances.
 
-    Returns:
-    tuple(int): tuple with form (channels, width, heigth, depth)
+    Returns (tuple[int]) tuple with form (channels, width, heigth, depth)
     """
     shapes = [np.array(instance.shape) for instance in instances]
     mean = np.mean(shapes, axis=0)
@@ -44,13 +42,11 @@ def get_mask_labels(instances):
     r"""Returns a set of integer labels which appear in segmentation masks in 
     a list of instances.
 
-    Arguments:
-    instances (list(mp.data.datasets.dataset.dataset_segmentation.SegmentationInstance)): a 
-        list of segmentation instances.
+    Args:
+        instances (list[SegmentationInstance)): a  list of segmentation instances.
 
-    Returns:
-    list str -> list of the form ['0', '1', '2', etc.] as replacement for 
-        not havng the real label names.
+    Returns (list[str]): list of the form ['0', '1', '2', etc.] as replacement 
+        for not having the real label names.
     """
     labels = set()
     for instance in instances:
@@ -70,7 +66,7 @@ def check_correct_nr_labels(labels, instances):
         print('Warning: Some labels are not represented in the data')
 
 def get_normalization_values(instances):
-    # TODO test
+    r"""Get normalization values for a dataset."""
     count = 0
     mean = torch.empty(3)
     std = torch.empty(3)

@@ -1,6 +1,8 @@
 # ------------------------------------------------------------------------------
-# Transform a multi-channeled network output into a prediction.
+# Transform a multi-channeled network output into a prediction, and similar 
+# helper functions.
 # ------------------------------------------------------------------------------
+
 import torch
 
 def arg_max(output, channel_dim=1):

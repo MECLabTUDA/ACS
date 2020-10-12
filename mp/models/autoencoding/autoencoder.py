@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# Basic class for autoencoder models.
+# Basic class for autoencoder models that reconstruct the input.
 # ------------------------------------------------------------------------------
 
 from mp.models.model import Model

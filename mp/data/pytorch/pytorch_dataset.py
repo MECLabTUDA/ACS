@@ -1,19 +1,22 @@
 # ------------------------------------------------------------------------------
 # This class builds a descendant of torch.utils.data.Dataset from a 
-# mp.data.datasets.dataset and a list of instance indexes.
+# mp.data.datasets.dataset.Dataset and a list of instance indexes.
 # ------------------------------------------------------------------------------
 
-from PIL import Image
-import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
 
 class PytorchDataset(Dataset):
-    def __init__(self, dataset, ix_lst=None, resize=None, transform_lst=[], norm=None):
-        """
-        :param dataset: instance of mp.data.datasets.dataset
-        :param ix_lst: list specifying the instances of 'dataset' to include.
-        If 'None', all which are not in the hold-out dataset are incuded.
+    def __init__(self, dataset, ix_lst=None, size=None):
+        r"""A dataset which is compatible with PyTorch.
+
+        Args:
+            dataset (mp.data.datasets.dataset.Dataset): a descendant of the
+                class defined internally for datasets.
+            ix_lst (list[int]): list specifying the instances of 'dataset' to 
+                include. If 'None', all which are not in the hold-out dataset 
+                are incuded.
+            size (tuple[int]): desired input size.
+
         :param resize: resize images into this new size.
         :param transform_lst: a list of torchvision transforms operations.
         :param norm: values to normalize the dataset with the form 
@@ -22,19 +25,11 @@ class PytorchDataset(Dataset):
         """
         # Indexes
         if ix_lst is None:
-            ix_lst = [ix for ix in range(len(dataset.instances)) if ix not in dataset.hold_out_ixs]
-        self.instances = [ex for ix, ex in enumerate(dataset.instances) if ix in ix_lst]
-
-        # Transform
-        transform_operations = [transforms.ToTensor()]
-        if resize is not None:
-            transform_operations.append(transforms.ToPILImage())
-            transform_operations.append(transforms.Resize(resize))
-            transform_operations.append(transforms.ToTensor())
-        transform_operations += transform_lst
-        if norm is not None:
-            transform_operations.append(transforms.Normalize(mean=norm['mean'], std=norm['std']))
-        self.transform = transforms.Compose(transform_operations)
+            ix_lst = [ix for ix in range(len(dataset.instances)) 
+                if ix not in dataset.hold_out_ixs]
+        self.instances = [ex for ix, ex in enumerate(dataset.instances) 
+            if ix in ix_lst]
+        self.size = size
 
     def __len__(self):
         return len(self.instances)
