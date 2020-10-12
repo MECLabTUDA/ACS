@@ -66,8 +66,8 @@ class Agent:
             optimizer.zero_grad()
             loss = loss_f(outputs, targets)
             loss.backward()
-            acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
             optimizer.step()
+            acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
 
         if print_run_loss:
             print('\nRunning loss: {}'.format(acc.mean('loss')))

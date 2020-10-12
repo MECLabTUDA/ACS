@@ -4,6 +4,11 @@
 # http://medicaldecathlon.com/ and specify the path in mp.paths.py. 
 # ------------------------------------------------------------------------------
 #%% 1. Imports
+
+from IPython import get_ipython
+get_ipython().magic('load_ext autoreload') 
+get_ipython().magic('autoreload 2')
+
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
@@ -29,6 +34,8 @@ config = {'experiment_name':'test_exp', 'device':'cuda:0',
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
     }
 device = config['device']
+device_name = torch.cuda.get_device_name(device)
+print('Device name: {}'.format(device_name))
 input_shape = config['input_shape']  
 
 #%% 3. Create expeirment directories

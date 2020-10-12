@@ -44,9 +44,12 @@ def split_dataset(
             train_val, test = split_instances(dataset=dataset, 
                 ratio=1-test_ratio, exclude_ixs=dataset.hold_out_ixs, 
                 stratisfied=True, respecting_groups=respecting_groups)
-            train, val = split_instances(dataset=dataset, ratio=1-val_ratio, 
-                exclude_ixs=dataset.hold_out_ixs+test, stratisfied=True, 
-                respecting_groups=respecting_groups)
+            if val_ratio> 0:
+                train, val = split_instances(dataset=dataset, ratio=1-val_ratio, 
+                    exclude_ixs=dataset.hold_out_ixs+test, stratisfied=True, 
+                    respecting_groups=respecting_groups)
+            else:
+                train, val = train_val, []
             splits.append({'train': train, 'val': val, 'test': test})
     return splits
 
