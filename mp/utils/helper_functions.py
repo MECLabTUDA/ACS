@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------------------
 
 def f_optional_args(f, args, x):
-    """If there are arguments, these are passed to the function."""
+    r"""If there are arguments, these are passed to the function."""
     if args:
         return f(x, **args)
     else:
@@ -11,7 +11,7 @@ def f_optional_args(f, args, x):
 
 import datetime
 def get_time_string(cover=False):
-    """
+    r"""
     Returns the current time in the format YYYY-MM-DD_HH-MM, or
     [YYYY-MM-DD_HH-MM] if 'cover' is set to 'True'.
     """
@@ -24,6 +24,7 @@ def get_time_string(cover=False):
 import ntpath
 
 def divide_path_fname(path):
+    r"""Divide path and name from a full path."""
     path_to_file, file_name = ntpath.split(path)
     if not file_name:
         # Cease where the path ends with a slash

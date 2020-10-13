@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from mp.models.autoencoding.autoencoder import Autoencoder
 
 class AutoencoderLinear(Autoencoder):
+    r"""An autoencoder with only linear layers."""
     def __init__(self, input_shape, hidden_dim = [128, 64]):
         super().__init__(input_shape=input_shape)
         in_dim = self.input_shape[0] if len(self.input_shape)<2 else reduce(lambda x, y: x*y, self.input_shape)
@@ -24,6 +25,7 @@ class AutoencoderLinear(Autoencoder):
             for i in reversed(range(len(dims)-1))])
 
     def preprocess_input(self, x):
+        r"""Flatten x into one dimension."""
         return torch.flatten(x, start_dim=1)
 
     def encode(self, x):

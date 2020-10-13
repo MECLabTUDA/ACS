@@ -8,6 +8,7 @@ from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.mean_scores import get_mean_scores
 
 def dl_losses(dl, agent, loss_f):
+    r"""Calculate components of the given loss for a Dataloader"""
     acc = Accumulator()
     for data in dl:
         inputs, targets = agent.get_inputs_targets(data)
@@ -20,6 +21,7 @@ def dl_losses(dl, agent, loss_f):
     return acc
 
 def dl_metrics(dl, agent, metrics):
+    r"""Calculate metrics for a Dataloader"""
     acc = Accumulator()
     for data in dl:
         inputs, targets = agent.get_inputs_targets(data)
@@ -36,11 +38,17 @@ def dl_metrics(dl, agent, metrics):
     return acc
 
 def ds_losses(ds, agent, loss_f):
-    """
-    returns: {loss -> {subject_name -> value}}}, with 2 additional entries per 
-    loss for 'mean' and 'std'. Note that the metric is calculated per dataloader
-    pero dataset. So, for instance, the scores for slices in a 2D dataloader are
-    averaged.
+    r"""Calculate components of the loss function for a Dataset.
+
+    Args:
+        ds(PytorchDataset): a PytorchDataset
+        agent(Argent): an agent
+        loss_f(LossAbstract): a loss function descending from LossAbstract
+
+    Returns (dict[str -> dict]): {loss -> {subject_name -> value}}}, with 2 
+        additional entries per loss for 'mean' and 'std'. Note that the metric 
+        is calculated per dataloader per dataset. So, for instance, the scores 
+        for slices in a 2D dataloader are averaged.
     """
     eval_dict = dict()
     acc = Accumulator()
@@ -62,9 +70,15 @@ def ds_losses(ds, agent, loss_f):
     return eval_dict
 
 def ds_metrics(ds, agent, metrics):
-    """
-    returns: {metric -> {subject_name -> value}}}, with 2 additional entries per 
-    metric for 'mean' and 'std'.
+    r"""Calculate metrics for a Dataset.
+
+    Args:
+        ds(PytorchDataset): a PytorchDataset
+        agent(Argent): an agent
+        metrics(list[str]): a list of metric names
+
+    Returns (dict[str -> dict]): {metric -> {subject_name -> value}}}, with 2 
+        additional entries per metric for 'mean' and 'std'.
     """
     eval_dict = dict()
     acc = Accumulator()
@@ -89,6 +103,7 @@ def ds_metrics(ds, agent, metrics):
     return eval_dict
 
 def ds_losses_metrics(ds, agent, loss_f, metrics):
+    r"""Combination of metrics and losses into one dictionary."""
     eval_dict = ds_losses(ds, agent, loss_f)
     if metrics:
         eval_dict.update(ds_metrics(ds, agent, metrics))

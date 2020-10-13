@@ -11,6 +11,14 @@ import torchio
 import mp.data.pytorch.transformation as trans
 
 class Predictor():
+    r"""A predictor recreates a prediction with the correct dimensions from 
+    model outputs. There are different predictors for different PytorchDatasets,
+    and these are setted internally with the creation of a PytorchDataset.
+    Args:
+        instances (list[Instance]): a list of instances, as for a Dataset
+        size (tuple[int]): size as (channels, width, height, Opt(depth))
+        norm (torchio.transforms): a normaliztion strategy
+    """
     def __init__(self, instances, size=(1, 56, 56, 10), norm=None):
         self.instances = instances
         assert len(size) > 2
@@ -18,26 +26,26 @@ class Predictor():
         self.norm = norm
 
     def transform_subject(self, subject):
+        r"""Apply normalization strategy to subject."""
         if self.norm is not None:
             subject = self.norm(subject)
         return subject
 
     def get_subject(self, subject_ix):
+        r"""Copy and load a TorchIO subject."""
         subject = copy.deepcopy(self.instances[subject_ix].get_subject())
         subject.load()
         subject = self.transform_subject(subject)
         return subject
 
     def get_subject_prediction(self, agent, subject_ix):
-        """Get a prediction for a 3D subject.
-        """
+        r"""Get a prediction for a 3D subject."""
         raise NotImplementedError
 
 class Predictor2D(Predictor):
-    """The Predictor2D makes a forward pass for each 2D slice and merged these
+    r"""The Predictor2D makes a forward pass for each 2D slice and merged these
     into a volume.
     """
-
     def __init__(self, *args, resize=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.resize = resize
@@ -73,10 +81,9 @@ class Predictor2D(Predictor):
         return pred
 
 class Predictor3D(Predictor):
-    """The Predictor3D Reconstructs an image into the original size after 
+    r"""The Predictor3D Reconstructs an image into the original size after 
     performing a forward pass.
     """
-
     def __init__(self, *args, resize=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.resize = resize
@@ -109,10 +116,9 @@ class Predictor3D(Predictor):
         return pred
 
 class GridPredictor(Predictor):
-    """The GridPredictor deconstructs a 3D volume into patches, makes a forward 
+    r"""The GridPredictor deconstructs a 3D volume into patches, makes a forward 
     pass through the model and reconstructs a prediction of the output size.
     """
-
     def __init__(self, *args, patch_overlap = (0,0,0), **kwargs):
         super().__init__(*args, **kwargs)
         assert patch_overlap[2] == 0 # Otherwise, have gotten wrong overlap

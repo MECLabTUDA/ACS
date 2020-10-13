@@ -11,6 +11,12 @@ import telegram as tel
 from mp.utils.load_restore import load_json, join_path
 
 class TelegramBot():
+    r"""Initialize a telegram bot.
+    Args:
+        login_data (dict[str -> str]): dictionary with the entries 'chat_id'
+            and 'token'
+
+    """
     def __init__(self, login_data = None):
         if login_data is None:
             login_data = load_json(path=join_path(['src', 'utils', 'telegram_bot']), 
@@ -19,4 +25,5 @@ class TelegramBot():
         self.bot = tel.Bot(token=login_data['token'])
 
     def send_msg(self, msg):
+        r"""Send a message in string form"""
         self.bot.send_message(chat_id=self.chat_id, text=msg)

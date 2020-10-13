@@ -7,6 +7,7 @@
 import torch
 
 def normalization_values(dataset):
+    r"""Compute normalization values for a dataset."""
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=10, shuffle=False)
     count = 0
     mean = torch.empty(3)

@@ -14,13 +14,20 @@ def split_dataset(
     dataset, test_ratio=0.2, val_ratio=0.2, 
     nr_repetitions=5, cross_validation=True, 
     respecting_groups=True):
-    """
-    :param test_ratio: ratio of instances from 'dataset' for testing
-    :param val_ratio: ratio of non-test instances from 'dataset' for validation
-    :param nr_repetitions: number of times the experiment is repeated
-    :param cross_validation: are the repetitions cross-val folds?
-    :returns: A list of length 'nr_repetitions' where each item is a dictionary
-        with keys 'train', 'val' and 'test'
+    r"""Splits a dataset into different index folds.
+
+    Args:
+        dataset (Dataset): a Dataset object
+        test_ratio (float): ratio of instances for testing
+        val_ratio (float): ratio of non-test instances for validation
+        nr_repetitions (int): number of times the experiment should be repeated,
+            i.e. number of index splits which are created.
+        cross_validation (bool): are the repetitions cross-val folds?
+        respecting_groups (bool): do not place examples with the same group in
+            the same fold
+    
+    Returns (list[dict[str -> list[int]]]): A list of length 'nr_repetitions' 
+        where each item is a dictionary with keys 'train', 'val' and 'test'.
     """
     splits = []
     if cross_validation:
@@ -54,17 +61,21 @@ def split_dataset(
     return splits
 
 
-def split_instances(dataset, ratio=0.7, exclude_ixs=[], stratisfied=True, respecting_groups=True):
-    """
-    Divides instances into two stratisfied sets. The stratification 
+def split_instances(dataset, ratio=0.7, exclude_ixs=[], stratisfied=True, 
+    respecting_groups=True):
+    r"""Divides instances into two stratisfied sets. The stratification 
     operations prefers to give more examples of underrepresented classes
     to smaller sets (when the examples in a class cannot be split without
     a remainder).
 
-    :param ratio: ratio of instances which remain in the first set.
-    :param exclude: exclude these indexes from the splitting.
-    :param stratisfied: should there be ca. as any examples for each class?
-    :returns: two index lists with the.
+    Args:
+        ratio (float): ratio of instances which remain in the first set.
+        exclude_ixs (list[int]): exclude these indexes from the splitting
+        stratisfied (bool): should there be ca. as any examples for each class?
+        respecting_groups (bool): do not place examples with the same group in
+            the same fold
+    
+    Returns (tuple[list[int]]): 2 index lists with the indexes
     """
     ixs = range(dataset.size)
     ixs = [ix for ix in ixs if ix not in exclude_ixs]
@@ -111,16 +122,20 @@ def split_instances(dataset, ratio=0.7, exclude_ixs=[], stratisfied=True, respec
     assert len(set(ixs_1+ixs_2+exclude_ixs)) == len(dataset.instances)
     return ixs_1, ixs_2
 
-def create_instance_folds(dataset, k=5, exclude_ixs=[], stratisfied=True, respecting_groups=True):
-    """
-    Divides instances into k stratisfied sets. Always, the most examples of 
+def create_instance_folds(dataset, k=5, exclude_ixs=[], 
+    stratisfied=True, respecting_groups=True):
+    r"""Divides instances into k stratisfied sets. Always, the most examples of 
     a class (when not divisible) are added to the fold that currently has
     the least examples.
 
-    :param k: number of sets.
-    :param exclude: exclude these indexes from the splitting
-    :param stratisfied: should there be ca. as any examples for each class?
-    :returns: k index lists with the indexes
+    Args:
+        k (int): number of sets.
+        exclude_ixs (list[int]): exclude these indexes from the splitting
+        stratisfied (bool): should there be ca. as any examples for each class?
+        respecting_groups (bool): do not place examples with the same group in
+            the same fold
+    
+    Returns (tuple[list[int]]): k index lists with the indexes
     """
     ixs = range(dataset.size)
     ixs = [ix for ix in ixs if ix not in exclude_ixs]
@@ -145,9 +160,8 @@ def create_instance_folds(dataset, k=5, exclude_ixs=[], stratisfied=True, respec
     return folds
 
 def _divide_sets_similar_length(instances, exs, k, respecting_groups=True):
-    """
-    Divides a list exs into k sets of similar length, with the initial ones 
-    being longer.
+    r"""Divides a list exs into k sets of similar length, with the initial 
+    ones being longer.
     """
     random.shuffle(exs)
     folds = [[] for i in range(k)]
@@ -203,8 +217,7 @@ def _divide_sets_similar_length(instances, exs, k, respecting_groups=True):
     return folds
 
 def _split_ixs(ixs, first_ds_len, instances, respecting_groups=True):
-    """
-    Returns two lists of indexes, which are subsets of ixs
+    r"""Returns two lists of indexes, which are subsets of ixs.
     """
     if not respecting_groups or instances[0].group_id == None:
         return ixs[:first_ds_len], ixs[first_ds_len:]

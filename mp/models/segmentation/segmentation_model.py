@@ -5,9 +5,8 @@
 from mp.models.model import Model
 
 class SegmentationModel(Model):
-    """
-    :param input_shape: channels, width, height, optional(depth)
-    """
+    r"""An abstract class for segmentation models that caluclates the output 
+    shape from the input shape and the number of labels."""
     def __init__(self, input_shape, nr_labels):
         assert 2 < len(input_shape) < 5
         # The output shae is the same as the input shape, but instead of the 

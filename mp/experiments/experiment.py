@@ -21,19 +21,20 @@ from mp.paths import storage_path
 from mp.data.data import Data
 
 class Experiment:
-    """A bundle of experiment runs with the same configuration. """
-    def __init__(self, config=None, name='', notes='', reload_exp=False):
-        """
-        :param config: A dictionary contains a.o. the following keys:
+    r"""A bundle of experiment runs with the same configuration. 
+
+    Args:
+        config (dict): A dictionary contains a.o. the following keys:
         - cross_validation: are the repetitions cross-validation folds?
         - nr_runs: number of repetitions/cross-validation folds
         - test_ratio: Ratio of test data
         - val_ratio: Ratio of validation data from non-test data
-        :param name: experiment name. If empty, a datestring is set as name.
-        :param notes: optional notes about the experiment
-        :param reload_exp: Reload or throw error when expriment name exists?
+        name (str): experiment name. If empty, a datestring is set as name.
+        notes (str): optional notes about the experiment
+        reload_exp (bool): Reload or throw error when expriment name exists?
             Meant for performing runs separatedly.
-        """
+    """
+    def __init__(self, config=None, name='', notes='', reload_exp=False):
         self.time_str = get_time_string()
         self.review = {'time_str': self.time_str, 'notes': notes}
         self.splits = None
@@ -78,12 +79,12 @@ class Experiment:
         return ExperimentRun(run_ix, self.path)
 
     def finish(self, results=None):
-        """After running all runs, finish expeirment by recording average values"""
+        r"""After running all runs, finish expeirment by recording averages"""
         # TODO first do eval.result.ExperimentResults
         pass
 
 class ExperimentRun:
-    """Experiment runs with different indexes for train, val, test. """
+    r"""Experiment runs with different indexes for train, val, test. """
     def __init__(self, run_ix, exp_path):
         self.run_ix = run_ix
         self.paths = self._set_paths(exp_path)
@@ -101,7 +102,7 @@ class ExperimentRun:
             os.mkdir(paths[subpath])
         return paths
 
-    def finish(self, results=None, exception=None):
+    def finish(self, results=None, exception=None, plot_metrics=None):
         elapsed_time = time.time() - self.time_start
         self.review['elapsed_time'] = '{0:.2f}'.format(elapsed_time/60)
         if results:
@@ -110,9 +111,9 @@ class ExperimentRun:
             self._write_summary_measures(results)
             if isinstance(results, list):
                 for result in results:
-                    self._plot_results(result=result, save_path=os.path.join(self.paths['results']))
+                    self._plot_results(result=result, save_path=self.paths['results'], plot_metrics=plot_metrics)
             else:
-                 self._plot_results(result=results, save_path=os.path.join(self.paths['results']))
+                 self._plot_results(result=results, save_path=self.paths['results'], plot_metrics=plot_metrics)
         else:
             self.review['state'] = 'FAILURE: ' + str(exception)
             # TODO: store exception with better format, or whole error path
@@ -149,8 +150,8 @@ class ExperimentRun:
         for key in pkl_dict.keys():
             pkl_dict[key] = lr.pkl_load(key, path=self.paths['states'])
 
-    def _plot_results(self, result, save_path):
-        plot_results(result, save_path=self.paths['results'])
+    def _plot_results(self, result, save_path, plot_metrics=None):
+        plot_results(result, save_path=self.paths['results'], measures=plot_metrics)
 
     def _write_summary_measures(self, results):
         pass

@@ -10,13 +10,15 @@ from mp.utils.seaborn.legend_utils import format_legend
 def plot_results(result, measures=None, save_path=None, save_name=None, 
     title=None, ending='.png', ylog=False, figsize=(10,5)):
     """Plots a data frame as created by mp.eval.Results
-    ::param measures: list of measure names
-    ::param save_path: path to save plot
-    ::param save_name: name with which plot is saved
-    ::param title: the title that will appear on the plot
-    ::param ending: can be '.png' or '.svg'
-    ::param ylog: apply logarithm to y axis
-    ::param figsize: figure size
+
+    Args:
+        measures (list[str]): list of measure names
+        save_path (str): path to save plot. If None, plot is shown.
+        save_name (str): name with which plot is saved
+        title (str): the title that will appear on the plot
+        ending (str): can be '.png' or '.svg'
+        ylog (bool): apply logarithm to y axis
+        figsize (tuple[int]): figure size
     """
     df = result.to_pandas()
     # Filter out measures that are not to be shown

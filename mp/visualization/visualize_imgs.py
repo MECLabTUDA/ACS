@@ -13,7 +13,7 @@ from PIL import Image
 from mp.data.pytorch.transformation import one_output_channel
 
 def img_to_numpy_array(x):
-    """Transform an image in several formats into a numpy array."""
+    r"""Transform an image in several formats into a numpy array."""
     type_str = str(type(x))
     if 'SimpleITK.SimpleITK.Image' in type_str:
         return sitk.GetArrayFromImage(x)
@@ -27,7 +27,7 @@ def img_to_numpy_array(x):
         raise NotImplementedError
 
 def ensure_channel_width_height_depth(np_array):
-    """Ensure the dimensions go channels, width, height(, depth)"""
+    r"""Ensure the dimensions go channels, width, height(, depth)"""
     # TODO keep width and height in initial dimensions, right now largest first
     axis_order = np.argsort(np_array.shape)
     if len(np_array.shape) == 3:
@@ -39,12 +39,12 @@ def ensure_channel_width_height_depth(np_array):
     return np_array
 
 def normalize_range(img_array, max_value=255.):
-    """Normalize in range [0, 255]"""
+    r"""Normalize in range [0, 255]"""
     img_array /= (img_array.max()/max_value)
     return img_array.astype(np.uint8)
 
 def overlay_images(base, overlay, alpha=0.5):
-    """Add transparency to mask, and make composition of image overlayed by 
+    r"""Add transparency to mask, and make composition of image overlayed by 
     transparent mask.
     """
     alpha = int(255*alpha)
@@ -52,7 +52,7 @@ def overlay_images(base, overlay, alpha=0.5):
     return Image.alpha_composite(base, overlay)
 
 def stretch_mask_range(mask):
-    """Stretches the range of mask values to [0, 255] so that they are 
+    r"""Stretches the range of mask values to [0, 255] so that they are 
     differentiable, and converts to RGBA PIL Image.
     """
     if mask.max() != 0:
@@ -67,7 +67,7 @@ segmask_colors = {1: {'red': 206, 'green': 24, 'blue': 30}, # Red
     }
 
 def color_mask(mask):
-    """Converts a mask with integer values that are typically < 5 to an RGBA
+    r"""Converts a mask with integer values that are typically < 5 to an RGBA
     PIL image which each integer is a differentiable color.
     """
     mask = mask.astype(np.uint8)
@@ -84,17 +84,19 @@ def color_mask(mask):
 ### Visualize images, masks and dataloaders using Pillow ###
     
 def plot_3d_subject_gt(subject):
+    r"""Plot a subject with input and ground truth"""
     inputs = subject['x'].data
     targets = subject['y'].data
     plot_3d_segmentation(inputs, targets)
 
 def plot_3d_subject_pred(subject, pred):
+    r"""Plot a subject with input and prediction"""
     inputs = subject['x'].data
     assert pred.shape == subject['y'].data.shape, "Prediction has the wrong size."
     plot_3d_segmentation(inputs, pred)
 
 def plot_3d_img(img, save_path=None, img_size=(512, 512)):
-    """Visualize a 3D image."""
+    r"""Visualize a 3D image."""
     img = img_to_numpy_array(img)
     if len(img.shape) == 3:
         # Add channel dimension
@@ -115,7 +117,7 @@ def plot_3d_img(img, save_path=None, img_size=(512, 512)):
 
 def plot_3d_segmentation(
         img, segmentation, save_path=None, img_size=(512, 512), alpha=0.5):
-    """Visualize a 3D image with coresponding segmentation."""
+    r"""Visualize a 3D image with coresponding segmentation."""
     img = img_to_numpy_array(img)
     segmentation = img_to_numpy_array(segmentation)
     assert img.shape == segmentation.shape
@@ -140,7 +142,7 @@ def plot_3d_segmentation(
         img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
 
 def get_img_grid(img_list, nr_rows, nr_cols, randomize=False):
-    """Place list items in a gris format."""
+    r"""Place list items in a gris format."""
     if randomize:
         random.shuffle(img_list)
     img_grid = [[None for i in range(nr_cols)] for j in range(nr_rows)]
@@ -152,7 +154,7 @@ def get_img_grid(img_list, nr_rows, nr_cols, randomize=False):
 
 def create_img_grid(img_grid = [[]], img_size = (512, 512), 
     margin = (5, 5), background_color = (255, 255, 255, 255), save_path=None):
-    """Visualize a grid with 2d image slices, overlayed with masks."""
+    r"""Visualize a grid with 2d image slices, overlayed with masks."""
     bg_width = len(img_grid[0])*img_size[0] + (len(img_grid[0])+1)*margin[0]
     bg_height = len(img_grid)*img_size[1] + (len(img_grid)+1)*margin[1]
     new_img = Image.new('RGBA', (bg_width, bg_height), background_color)
@@ -179,7 +181,7 @@ def create_img_grid(img_grid = [[]], img_size = (512, 512),
 
 def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
     margin = (5, 5), background_color = (255, 255, 255, 255), save_path=None):
-    """Visualize a grid with 2d image slices, overlayed with masks."""
+    r"""Visualize a grid with 2d image slices, overlayed with masks."""
     bg_width = len(img_grid[0])*img_size[0] + (len(img_grid[0])+1)*margin[0]
     bg_height = len(img_grid)*img_size[1] + (len(img_grid)+1)*margin[1]
     new_img = Image.new('RGBA', (bg_width, bg_height), background_color)
@@ -223,14 +225,14 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
 
 def visualize_dataloader(
     dataloader, max_nr_imgs=100, save_path=None, img_size=(256, 256)):
-    """Visualize images (inputs) from dataloader."""
+    r"""Visualize images (inputs) from dataloader."""
     imgs = get_imgs_from_dataloader(dataloader, max_nr_imgs)
     grid_side = int(math.ceil(math.sqrt(len(imgs))))
     img_grid = get_img_grid(imgs, grid_side, grid_side)
     create_img_grid(img_grid=img_grid, save_path=save_path, img_size=img_size)
 
 def get_imgs_from_dataloader(dataloader, nr_imgs):
-    """Get images (inputs) from dataloader and place in list."""
+    r"""Get images (inputs) from dataloader and place in list."""
     imgs = []
     for x, y in dataloader:
         x = x.cpu().detach().numpy()
@@ -243,7 +245,7 @@ def get_imgs_from_dataloader(dataloader, nr_imgs):
 
 def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None, 
     img_size=(256, 256), alpha=0.5):
-    """Visualize images and masks from dataloader."""
+    r"""Visualize images and masks from dataloader."""
     imgs = get_x_y_from_dataloader(dataloader, max_nr_imgs)
     grid_side = int(math.ceil(math.sqrt(len(imgs))))
     img_grid = get_img_grid(imgs, grid_side, grid_side)
@@ -251,7 +253,7 @@ def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None,
         img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
 
 def get_x_y_from_dataloader(dataloader, nr_imgs):
-    """Get images and masks from dataloader and place in list."""
+    r"""Get images and masks from dataloader and place in list."""
     imgs = []
     for x, y in dataloader:
         x = x.cpu().detach().numpy()
@@ -281,7 +283,7 @@ def get_x_y_from_dataloader(dataloader, nr_imgs):
 ### Visualize using matplotlib, deprecated ###
 
 def plot_overlay_mask(img, mask, save_path=None, figsize=(20, 20)):
-    """
+    r"""
     Compare two 2d imgs, one on top of the other.
     TODO: background takes on blue tones.
     """
@@ -299,6 +301,7 @@ def plot_overlay_mask(img, mask, save_path=None, figsize=(20, 20)):
         plt.show()
 
 def plot_2d_img(img, save_path=None, figsize=(20, 20)):
+    r"""Plot a 2d image"""
     if 'torch.Tensor' in  str(type(img)):
         img = img.cpu().detach().numpy()
     while img.shape[0] == 1:

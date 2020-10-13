@@ -10,6 +10,7 @@ from mp.models.autoencoding.autoencoder_linear import AutoencoderLinear
 from mp.data.pytorch.transformation import torchvision_rescaling
 
 class AutoencoderFeatured(AutoencoderLinear):
+    r"""An autoencoder that recontracts features."""
     def __init__(self, input_shape, hidden_dim = [128, 64], 
         feature_model_name='AlexNet'):
 
@@ -22,10 +23,8 @@ class AutoencoderFeatured(AutoencoderLinear):
         
 
     def preprocess_input(self, x):
-        '''
-        Preprocessing that is done to the input before performing the 
-        autoencoding, which is to say also to the target.
-        '''
+        r"""Preprocessing that is done to the input before performing the 
+        autoencoding, which is to say also to the target."""
         # Instead of doing a forward pass, we exclude the classifier
         # See https://github.com/pytorch/vision/blob/master/torchvision/models/alexnet.py
         x = torchvision_rescaling(x, size=self.extractor_size, resize=False)
@@ -35,10 +34,8 @@ class AutoencoderFeatured(AutoencoderLinear):
         return x
 
     def get_feature_extractor(self, model_name='AlexNet'):
-        '''
-        Features are extracted from the input data. These are normalized 
-        with the ImageNet statistics.
-        '''
+        r"""Features are extracted from the input data. These are normalized 
+        with the ImageNet statistics."""
         # Fetch pretrained model
         if model_name == 'AlexNet':  # input_size = 224 x 224
             feature_extractor = models.alexnet(pretrained=True)

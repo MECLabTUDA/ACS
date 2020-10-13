@@ -7,18 +7,19 @@
 import pandas as pd
 
 class ExperimentResults():
-    """Per-epoch results for all repetitions."""
+    r"""Per-epoch results for all repetitions."""
     def __init__(self, global_result_lst, epoch_result_lst):
         pass
         # TODO
 
 class Result():
-    """Per-epoch results for 1 repetition."""
+    r"""Per-epoch results for 1 repetition."""
     def __init__(self, name='Results'):
         self.name = name
         self.results = dict()
 
     def add(self, epoch, metric, value, data='train'):
+        r"""Add a new result entry."""
         assert isinstance(epoch, int)
         assert isinstance(metric, str)
         if isinstance(data, tuple):
@@ -32,6 +33,7 @@ class Result():
         self.results[metric][epoch][data] = value
 
     def get_epoch_metric(self, epoch, metric, data='train'):
+        r"""Get the value for a metric and epoch."""
         try:
             value = self.results[metric][epoch][data]
             return value
@@ -39,6 +41,7 @@ class Result():
             return None
 
     def to_pandas(self):
+        r"""Pandas representation of results."""
         data = [[metric, epoch, data, 
             self.results[metric][epoch][data]] 
             for metric in self.results.keys()
@@ -48,7 +51,9 @@ class Result():
         return df
 
     def get_min_epoch(self, metric, data='val'):
+        r"""Get the earliest epoch for which there is an entry."""
         return min(self.results[metric].keys(), key=lambda e: self.results[metric][e][data])
 
     def get_max_epoch(self, metric, data='val'):
+        r"""Get the latest epoch for which there is an entry."""
         return max(self.results[metric].keys(), key=lambda e: self.results[metric][e][data])

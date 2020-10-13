@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from mp.models.autoencoding.autoencoder import Autoencoder
 
 class AutoencoderCNN(Autoencoder):
+    r"""A simple CNN autoencoder."""
     def __init__(self, input_shape, hidden_ch = [16, 4]):
         super().__init__(input_shape=input_shape)
         in_channels = self.input_shape[0]

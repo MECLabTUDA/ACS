@@ -13,6 +13,7 @@ import torch.nn as nn
 from mp.eval.losses.loss_abstract import LossAbstract
 
 class LossDice(LossAbstract):
+    r"""Dice loss with a smoothing factor."""
     def __init__(self, smooth=1., device='cuda:0'):
         super().__init__(device=device)
         self.smooth = smooth
@@ -26,6 +27,7 @@ class LossDice(LossAbstract):
                 (output_flat.sum() + target_flat.sum() + self.smooth))
 
 class LossBCE(LossAbstract):
+    r"""Binary cross entropy loss."""
     def __init__(self, device='cuda:0'):
         super().__init__(device=device)
         self.bce = nn.BCELoss(reduction='mean')
@@ -34,7 +36,7 @@ class LossBCE(LossAbstract):
         return self.bce(output, target)
 
 class LossBCEWithLogits(LossAbstract):
-    """More stable than following applying a sigmoid function to the output 
+    r"""More stable than following applying a sigmoid function to the output 
     before applying the loss (see 
     https://pytorch.org/docs/stable/generated/torch.nn.LossBCEWithLogits.html), 
     but only use if applicable."""
@@ -46,6 +48,7 @@ class LossBCEWithLogits(LossAbstract):
         return self.bce(output, target)
 
 class LossCombined(LossAbstract):
+    r"""A combination of several different losses."""
     def __init__(self, losses, weights, device='cuda:0'):
         super().__init__(device=device)
         self.losses = losses
@@ -63,9 +66,6 @@ class LossCombined(LossAbstract):
         return total_loss
 
     def get_evaluation_dict(self, output, target):
-        '''
-        Return keys and values of all components making up this loss.
-        '''
         eval_dict = super().get_evaluation_dict(output, target)
         for loss, weight in zip(self.losses, self.weights):
             loss_eval_dict = loss.get_evaluation_dict(output, target)
@@ -74,11 +74,16 @@ class LossCombined(LossAbstract):
         return eval_dict
 
 class LossDiceBCE(LossCombined):
+    r"""A combination of Dice and Binary cross entropy."""
     def __init__(self, bce_weight=1., smooth=1., device='cuda:0'):
         super().__init__(losses=[LossDice(smooth=smooth), LossBCE()], 
             weights=[1., bce_weight], device=device)
 
 class LossClassWeighted(LossAbstract):
+    r"""A loss that weights different labels differently. Often, weights should
+    be set inverse to the ratio of pixels of that class in the data so that
+    classes with high representation (e.g. background) do not monopolize the 
+    loss."""
     def __init__(self, loss, weights=None, nr_labels=None, device='cuda:0'):
         super().__init__(device)
 
@@ -105,9 +110,6 @@ class LossClassWeighted(LossAbstract):
         return batch_loss / len(output)
 
     def get_evaluation_dict(self, output, target):
-        '''
-        Return keys and values of all components making up this loss.
-        '''
         eval_dict = super().get_evaluation_dict(output, target)
         weighted_loss_values = [0 for weight in self.class_weights]
         for instance_output, instance_target in zip(output, target):

@@ -6,9 +6,9 @@ from mp.visualization.confusion_matrix import ConfusionMatrix
 class Oracle():
     def __init__(self, train_datasets, exp_paths, batch_size=1, lowest_score=False, name=None):
         """
-        :param batch_size: batch size of dataloaders
-        :param name: name of the oracle (name of subclass)
-        :param lowest_score: select the task id for which the score is lowest?
+        param batch_size: batch size of dataloaders
+        param name: name of the oracle (name of subclass)
+        param lowest_score: select the task id for which the score is lowest?
             Otherwise that with highest score is selected.
         """
         ''' 

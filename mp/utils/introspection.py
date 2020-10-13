@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------------------
 
 def introspect(class_path):
-    """Creates a class dynamically."""
+    r"""Creates a class dynamically from a class path."""
     if isinstance(class_path, str):
         class_path = class_path.split('.')
     class_name = class_path[-1]

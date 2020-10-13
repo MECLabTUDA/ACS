@@ -5,6 +5,8 @@
 # ------------------------------------------------------------------------------
 
 class ScoreAbstract:
+    r"""Ab abstract definition of a metric that uses true positives, true 
+    negatives, false negatives and false positives to calculate a value."""
     def __init__(self):
         self.name = self.__class__.__name__
 
@@ -12,6 +14,8 @@ class ScoreAbstract:
         raise NotImplementedError
 
 class ScoreDice(ScoreAbstract):
+    r"""Dice score, inverce of a Dice loss except for the smoothing factor in
+    the loss."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fn+fp > 0:
@@ -21,6 +25,7 @@ class ScoreDice(ScoreAbstract):
         return (2*tp)/(2*tp+fp+fn)
 
 class ScoreIoU(ScoreAbstract):
+    r"""Intersection over Union."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fn+fp > 0:
@@ -30,6 +35,7 @@ class ScoreIoU(ScoreAbstract):
         return tp/(tp+fp+fn)
 
 class ScorePrecision(ScoreAbstract):
+    r"""Precision."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fp > 0:
@@ -39,9 +45,11 @@ class ScorePrecision(ScoreAbstract):
         return tp/(tp+fp)
 
 class ScorePPV(ScorePrecision):
+    r"""Positive predictve value, equivalent to precision."""
     pass
 
 class ScoreRecall(ScoreAbstract):
+    r"""Recall."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
             if fp > 0:
@@ -51,12 +59,15 @@ class ScoreRecall(ScoreAbstract):
         return tp/(tp+fn)
 
 class ScoreSensitivity(ScoreRecall):
+    r"""Sensitivity, equivalent to recall."""
     pass
 
 class ScoreTPR(ScoreRecall):
+    r"""True positive rate, equivalent to recall."""
     pass
 
 class ScoreSpecificity(ScoreAbstract):
+    r"""Specificity."""
     def eval(self, tp, tn, fn, fp):
         if tn == 0:
             if fp > 0:
@@ -66,4 +77,5 @@ class ScoreSpecificity(ScoreAbstract):
         return tn/(tn+fp)
 
 class ScoreTNR(ScoreSpecificity):
+    r"""True negative rate, equivalent to specificity."""
     pass

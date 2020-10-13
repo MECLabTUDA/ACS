@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from mp.models.model import Model
 
 class SmallCNN(Model):
+    r"""An CNN for classification."""
     def __init__(self, input_shape=(3, 32, 32), output_shape=10):
         super().__init__(input_shape, output_shape)
         self.conv1 = nn.Conv2d(3, 6, 5)

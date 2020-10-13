@@ -7,6 +7,7 @@ import torch
 import mp.eval.metrics.scores as score_defs
 
 def get_tp_tn_fn_fp_segmentation(target, pred, class_ix=1):
+    r"""Get TP, TN, FN and FP pixel values for segmentation."""
     assert target.shape + pred.shape
     device, shape = target.device, target.shape
     zeros = torch.zeros(shape).to(device)
@@ -24,8 +25,7 @@ def get_tp_tn_fn_fp_segmentation(target, pred, class_ix=1):
 def get_mean_scores(target, pred, metrics=['ScoreDice', 'ScoreIoU'], 
     label_names=['background', 'class 1'], label_weights=None,
     segmentation=True):
-    """
-    Returns the scores per label, as well as the (weighted) mean, for instance
+    r"""Returns the scores per label, as well as the (weighted) mean, such as
     to avoid considering "don't care" classes. The weights don't have to be 
     normalized.
     """
