@@ -13,12 +13,16 @@ class ConfusionMatrix:
     Args:
         nr_classes (int): number of classes/labels
     """
-    def __init__(self, nr_classes):
+    def __init__(self, nr_classes, labels=None):
         self.cm = [[0 for i in range(nr_classes)] for i in range(nr_classes)]
+        if labels is None:
+            self.labels = list(range(nr_classes))
+        else:
+            self.labels = labels
 
     def add(self, predicted, actual, count=1):
         r"""Set an entry for the confusion matrix."""
-        self.cm[actual][predicted] += count
+        self.cm[self.labels.index(actual)][self.labels.index(predicted)] += count
 
     def plot(self, path, name='confusion_matrix', label_predicted='Predicted', 
         label_actual='Actual', figure_size=(7,5), annot=True):

@@ -19,7 +19,7 @@ def get_tp_tn_fn_fp_segmentation(target, pred, class_ix=1):
     fn = torch.where(target_class==1,1-pred_class,zeros).sum()
     fp = torch.where(pred_class==1,1-target_class,zeros).sum()
     tp, tn, fn, fp = int(tp), int(tn), int(fn), int(fp)
-    assert int(ones.sum()) == tp+tn+fn+fp
+    #assert int(ones.sum()) == tp+tn+fn+fp
     return tp, tn, fn, fp
 
 def get_mean_scores(target, pred, metrics=['ScoreDice', 'ScoreIoU'], 

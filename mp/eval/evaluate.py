@@ -17,7 +17,7 @@ def dl_losses(dl, agent, loss_f):
         loss_dict = loss_f.get_evaluation_dict(outputs, targets)
         # Add to the accumulator   
         for key, value in loss_dict.items():         
-            acc.add('Loss_'+key, value, count=len(inputs))
+            acc.add(key, value, count=len(inputs))
     return acc
 
 def dl_metrics(dl, agent, metrics):

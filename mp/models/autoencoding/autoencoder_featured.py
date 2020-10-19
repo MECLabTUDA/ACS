@@ -21,7 +21,6 @@ class AutoencoderFeatured(AutoencoderLinear):
         self.extractor_size = extractor_size
         self.feature_extractor = self.get_feature_extractor(feature_model_name)
         
-
     def preprocess_input(self, x):
         r"""Preprocessing that is done to the input before performing the 
         autoencoding, which is to say also to the target."""

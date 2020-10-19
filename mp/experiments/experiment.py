@@ -75,8 +75,8 @@ class Experiment:
             lr.save_json(self.splits, path=self.path, name='splits')
             print('\n')
 
-    def get_run(self, run_ix):
-        return ExperimentRun(run_ix, self.path)
+    def get_run(self, run_ix, reload_exp_run=False):
+        return ExperimentRun(run_ix, self.path, reload_exp_run)
 
     def finish(self, results=None):
         r"""After running all runs, finish expeirment by recording averages"""
@@ -85,21 +85,25 @@ class Experiment:
 
 class ExperimentRun:
     r"""Experiment runs with different indexes for train, val, test. """
-    def __init__(self, run_ix, exp_path):
+    def __init__(self, run_ix, exp_path, reload_exp_run):
         self.run_ix = run_ix
-        self.paths = self._set_paths(exp_path)
+        self.paths = self._set_paths(exp_path, reload_exp_run)
         self.time_start = time.time()
         self.review = {'time_str': get_time_string()}
 
-    def _set_paths(self, exp_path):
+    def _set_paths(self, exp_path, reload_exp_run):
         paths = dict()
         paths['root'] = os.path.join(exp_path, str(self.run_ix))
-        if os.path.exists(paths['root']):
+        if os.path.exists(paths['root']) and not reload_exp_run:
             shutil.rmtree(paths['root'])
-        os.mkdir(paths['root'])
-        for subpath in ['results', 'states', 'obj', 'tmp']:
-            paths[subpath] = os.path.join(paths['root'], subpath)
-            os.mkdir(paths[subpath])
+        if not os.path.exists(paths['root']):
+            os.mkdir(paths['root'])
+            for subpath in ['results', 'states', 'obj', 'tmp']:
+                paths[subpath] = os.path.join(paths['root'], subpath)
+                os.mkdir(paths[subpath])
+        else:
+            for subpath in ['results', 'states', 'obj', 'tmp']:
+                paths[subpath] = os.path.join(paths['root'], subpath)
         return paths
 
     def finish(self, results=None, exception=None, plot_metrics=None):
