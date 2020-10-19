@@ -147,7 +147,7 @@ class GridPredictor(Predictor):
                 pred = torch.unsqueeze(pred, 1)
 
                 patch_aggregator.add_batch(pred, locations)
-        output = patch_aggregator.get_output_tensor()
+        output = patch_aggregator.get_output_tensor().to(agent.device)
 
         assert original_size == output.shape
         return output
