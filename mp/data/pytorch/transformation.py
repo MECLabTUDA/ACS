@@ -17,7 +17,7 @@ NORMALIZATION_STRATEGIES = {None:None,
 AUGMENTATION_STRATEGIES = {'none':None,
     'standard': torchio.transforms.Compose([
         torchio.transforms.OneOf({
-            torchio.transforms.RandomElasticDeformation(p=0.3,
+            torchio.transforms.RandomElasticDeformation(p=0.1,
                 num_control_points=(7,7,7), 
                 max_displacement=7.5): 0.7,
             torchio.RandomAffine(p=0.1,
@@ -25,9 +25,9 @@ AUGMENTATION_STRATEGIES = {'none':None,
                 degrees=(5),
                 isotropic=False,
                 default_pad_value='otsu',
-                image_interpolation='bspline'): 0.3
+                image_interpolation='bspline'): 0.1
         }),
-        torchio.transforms.RandomFlip(p=0.3, 
+        torchio.transforms.RandomFlip(p=0.1, 
             axes=(1, 0, 0)),
         torchio.transforms.RandomMotion(p=0.1,
             degrees=10, 
