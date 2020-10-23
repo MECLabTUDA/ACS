@@ -141,14 +141,14 @@ class ExperimentRun:
         for key, value in pkl_dict.items():
             lr.pkl_dump(value, key, path=self.paths['states'])
 
-    def restore_state(self, state_name, pytorch_dict, np_dict, pkl_dict):
+    def restore_state(self, state_name, pytorch_dict, np_dict, pkl_dict, device='cuda:0'):
         success = True
         if 'model' in pytorch_dict:
-            success = success and ptlr.load_model_state(pytorch_dict['model'], name=state_name+'_model', path=self.paths['states'])
+            success = success and ptlr.load_model_state(pytorch_dict['model'], name=state_name+'_model', path=self.paths['states'], device=device)
         if 'optimizer' in pytorch_dict:
-            success = success and ptlr.load_optimizer_state(pytorch_dict['optimizer'], name=state_name+'_optimizer', path=self.paths['states'])
+            success = success and ptlr.load_optimizer_state(pytorch_dict['optimizer'], name=state_name+'_optimizer', path=self.paths['states'], device=device)
         if 'scheduler' in pytorch_dict:
-            success = success and ptlr.load_scheduler_state(pytorch_dict['scheduler'], name=state_name+'_scheduler', path=self.paths['states'])
+            success = success and ptlr.load_scheduler_state(pytorch_dict['scheduler'], name=state_name+'_scheduler', path=self.paths['states'], device=device)
         for key in np_dict.keys():
             np_dict[key] = lr.np_load(key, path=self.paths['states'])
         for key in pkl_dict.keys():

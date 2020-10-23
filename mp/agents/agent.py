@@ -170,13 +170,13 @@ class Agent:
         """
         state_full_path = os.path.join(states_path, state_name)
         try:
-            correct_load = load_model_state(self.model, 'model', state_full_path)
+            correct_load = load_model_state(self.model, 'model', state_full_path, device=self.device)
             assert correct_load
             agent_state_dict = pkl_load('agent_state_dict', state_full_path)
             assert agent_state_dict is not None
             self.agent_state_dict = agent_state_dict
             if optimizer is not None: 
-                load_optimizer_state(optimizer, 'optimizer', state_full_path)
+                load_optimizer_state(optimizer, 'optimizer', state_full_path, device=self.device)
             if self.verbose:
                 print('State {} was restored'.format(state_name))
             return True

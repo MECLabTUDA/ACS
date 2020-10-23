@@ -29,12 +29,12 @@ class Model(nn.Module):
         r"""E.g. pretrained features. Override if needed. """
         return x
 
-    def initialize(self, weights_init_path):
+    def initialize(self, weights_init_path, device):
         r"""Tries to restore a previous model. If no model is found, the initial 
         weights are saved.
         """
         path, name = os.path.split(weights_init_path) 
-        restored = load_model_state(self, path=path, name=name)
+        restored = load_model_state(self, path=path, name=name, device=device)
         if restored:
             print('Initial parameters {} were restored'.format(weights_init_path))
         else:
