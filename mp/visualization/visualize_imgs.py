@@ -83,17 +83,17 @@ def color_mask(mask):
 
 ### Visualize images, masks and dataloaders using Pillow ###
     
-def plot_3d_subject_gt(subject):
+def plot_3d_subject_gt(subject, save_path=None):
     r"""Plot a subject with input and ground truth"""
     inputs = subject['x'].data
     targets = subject['y'].data
-    plot_3d_segmentation(inputs, targets)
+    plot_3d_segmentation(inputs, targets, save_path=save_path)
 
-def plot_3d_subject_pred(subject, pred):
+def plot_3d_subject_pred(subject, pred, save_path=None):
     r"""Plot a subject with input and prediction"""
     inputs = subject['x'].data
     assert pred.shape == subject['y'].data.shape, "Prediction has the wrong size."
-    plot_3d_segmentation(inputs, pred)
+    plot_3d_segmentation(inputs, pred, save_path=save_path)
 
 def plot_3d_img(img, save_path=None, img_size=(512, 512)):
     r"""Visualize a 3D image."""
