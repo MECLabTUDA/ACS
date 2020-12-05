@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
+from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 import mp.visualization.visualize_imgs as vis
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
@@ -37,11 +37,11 @@ exp = Experiment(config=config, name=config['experiment_name'], notes='', reload
 
 # 4. Define data
 data = Data()
-data.add_dataset(DecathlonProstateT2(merge_labels=True))
+data.add_dataset(DecathlonHippocampus(merge_labels=True))
 nr_labels = data.nr_labels
 label_names = data.label_names
-train_ds = ('DecathlonProstateT2', 'train')
-test_ds = ('DecathlonProstateT2', 'test')
+train_ds = ('DecathlonHippocampus', 'train')
+test_ds = ('DecathlonHippocampus', 'test')
 
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
