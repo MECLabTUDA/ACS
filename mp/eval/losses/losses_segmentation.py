@@ -42,7 +42,7 @@ class LossBCEWithLogits(LossAbstract):
     but only use if applicable."""
     def __init__(self, device='cuda:0'):
         super().__init__(device=device)
-        self.bce = nn.BCELossWithLogits(reduction='mean')
+        self.bce = nn.BCEWithLogitsLoss(reduction='mean')# BCELossWithLogits
 
     def forward(self, output, target):
         return self.bce(output, target)
@@ -76,7 +76,7 @@ class LossCombined(LossAbstract):
 class LossDiceBCE(LossCombined):
     r"""A combination of Dice and Binary cross entropy."""
     def __init__(self, bce_weight=1., smooth=1., device='cuda:0'):
-        super().__init__(losses=[LossDice(smooth=smooth), LossBCE()], 
+        super().__init__(losses=[LossDice(smooth=smooth), LossBCEWithLogits()], #LossBCE
             weights=[1., bce_weight], device=device)
 
 class LossClassWeighted(LossAbstract):
