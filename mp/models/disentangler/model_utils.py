@@ -4,15 +4,15 @@ import torch.nn.functional as F
 
 # modules
 class EncoderContent(nn.Module):
-    def __init__(self, in_channels=3, n_conv=3, n_res=4):
-        super().__init__()
+    def __init__(self, in_channels=3, out_channels=256):
+        super(EncoderContent, self).__init__()
         
-        layers = [ConvBlock(in_channels=in_channels, normalization='Instance', kernel_size=7, stride=1)]
-        for _ in range(0, n_conv-1):
-            layers += [ConvBlock(normalization='Instance', kernel_size=3, stride=1)]
+        layers = [ConvBlock(in_channels=in_channels, normalization='Instance', kernel_size=3, stride=2, padding=1)]
+        for _ in range(0, 2):
+            layers += [ConvBlock(normalization='Instance', kernel_size=3, stride=2, padding=1)]
         
-        for _ in range(0, n_res):
-            layers += [ResBlockIN()]
+        for _ in range(0, 4):
+            layers += [ResBlockIN(out_channels=out_channels)]
 
         self.layers = nn.Sequential(*layers)
 
@@ -22,7 +22,7 @@ class EncoderContent(nn.Module):
         
 class EncoderStyle(nn.Module):
     def __init__(self, in_channels):
-        super().__init__()
+        super(EncoderStyle, self).__init__()
 
         layers = []
         
@@ -55,7 +55,7 @@ class EncoderStyle(nn.Module):
 
 class LatentScaler(nn.Module):
     def __init__(self, in_features):
-        super().__init__()
+        super(LatentScaler, self).__init__()
 
         layers = [nn.Linear(in_features=in_features, out_features=500), nn.LeakyReLU()]
         layers += [nn.Linear(in_features=500, out_features=1024), nn.LeakyReLU()]
@@ -68,48 +68,45 @@ class LatentScaler(nn.Module):
         self.layers = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.layers(x)
+        x = self.layers(x).reshape(x.shape[0],10,-1) # 10 occurences a 256 filters
         return x
 
 class Generator(nn.Module):
-    def __init__(self, in_channels):
-        super().__init__()
+    def __init__(self, in_channels, out_channels):
+        super(Generator, self).__init__()
 
-        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=256, layer_id=0, stride=1, padding=0)]
+        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0)]
 
-        for i in range(0,4):
-            layers_BCIN += [ResBlockBCIN(in_channels=256, out_channels=256, layer_id=i+1, stride=1, padding=0)]
+        for i in range(0,3):
+            layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0)]
 
-        layers = [nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=3, stride=1), nn.ReLU()]
-        layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=3, stride=1), nn.ReLU()]
+        layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
+        layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
 
-        layers += [nn.ConvTranspose2d(in_channels=64, out_channels=1, kernel_size=3, stride=1), nn.Tanh()]
+        layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Tanh()]
 
-        self.layers_BCIN = layers_BCIN
-        self.latent_scaler = LatentScaler(in_features=250)
+        self.layers_BCIN = nn.Sequential(*layers_BCIN)
         self.layers = nn.Sequential(*layers)
 
-    def forward(self, content, domain_code, style_sample):
-        latent_scale = self.latent_scaler(style_sample).reshape(style_sample.shape[0],10,-1) # 10 occurences a 256 filters
+    def forward(self, content, latent_scale, domain_code):
         x = content
-        for layer in self.layers_BCIN:
-            x = layer(x, domain_code, latent_scale)
+        x = self.layers_BCIN([[content, latent_scale, domain_code]])[0][0]
         x = self.layers(x)
         return x
 
 class DiscriminatorContent(nn.Module):
-    def __init__(self, in_channels):
-        super().__init__()
+    def __init__(self, in_channels, max_channels=512, kernel_size=4, stride=2):
+        super(DiscriminatorContent, self).__init__()
 
-        layers = [ConvBlock(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, normalization='None')]
-        layers += [ConvBlock(in_channels=64, out_channels=128, kernel_size=4, stride=2, normalization='None')]
-        layers += [ConvBlock(in_channels=128, out_channels=256, kernel_size=4, stride=2, normalization='None')]
-        layers += [ConvBlock(in_channels=256, out_channels=512, kernel_size=4, stride=1, normalization='None')]
-        layers += [ConvBlock(in_channels=512, out_channels=1, kernel_size=4, stride=1, normalization='None')]
+        layers = [ConvBlock(in_channels=in_channels, out_channels=64, kernel_size=kernel_size, stride=stride, normalization='None')]
+        layers += [ConvBlock(in_channels=64, out_channels=128, kernel_size=kernel_size, stride=stride, normalization='None')]
+        layers += [ConvBlock(in_channels=128, out_channels=max_channels//2, kernel_size=kernel_size, stride=stride, normalization='None')]
+        layers += [ConvBlock(in_channels=max_channels//2, out_channels=max_channels, kernel_size=kernel_size, stride=1, normalization='None')]
+        layers += [ConvBlock(in_channels=max_channels, out_channels=1, kernel_size=kernel_size, stride=1, normalization='None')]
         self.layers = nn.Sequential(*layers)
-
+        
         # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=21*21, out_features=1)
+        self.linear = nn.Linear(in_features=6**2, out_features=1) # 21**2
         self.activation = nn.Sigmoid() 
 
     def forward(self, x):
@@ -122,22 +119,22 @@ class DiscriminatorContent(nn.Module):
         return x
 
 class DiscriminatorStructureMulti(nn.Module):
-    def __init__(self, in_channels, domain_code_size):
-        super().__init__()
+    def __init__(self, in_channels, domain_code_size, max_channels=512, kernel_size=4, stride=2):
+        super(DiscriminatorStructureMulti, self).__init__()
 
-        layers = [ConvBlockBCIN(in_channels=in_channels, out_channels=64, kernel_size=4, stride=2, domain_code_size=domain_code_size)]
-        layers += [ConvBlockBCIN(in_channels=64, out_channels=128, kernel_size=4, stride=2, domain_code_size=domain_code_size)]
-        layers += [ConvBlockBCIN(in_channels=128, out_channels=256, kernel_size=4, stride=2, domain_code_size=domain_code_size)]
-        layers += [ConvBlockBCIN(in_channels=256, out_channels=512, kernel_size=4, stride=1, domain_code_size=domain_code_size)]
-        layers += [ConvBlockBCIN(in_channels=512, out_channels=1, kernel_size=4, stride=1, domain_code_size=domain_code_size, normalization='None')]
+        layers = [ConvBlockBCIN(in_channels=in_channels, out_channels=64, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
+        layers += [ConvBlockBCIN(in_channels=64, out_channels=128, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
+        layers += [ConvBlockBCIN(in_channels=128, out_channels=max_channels//2, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
+        layers += [ConvBlockBCIN(in_channels=max_channels//2, out_channels=max_channels, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
+        layers += [ConvBlockBCIN(in_channels=max_channels, out_channels=1, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size, normalization='None')]
         self.layers = nn.Sequential(*layers)
 
         # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=24*24, out_features=1)
+        self.linear = nn.Linear(in_features=7**2, out_features=1) # 24**2
         self.activation = nn.Sigmoid()
 
     def forward(self, x, domain_code):
-        x = self.layers(x, domain_code)
+        x = self.layers([[x, domain_code]])[0][0]
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
         x = self.activation(x)
@@ -146,7 +143,7 @@ class DiscriminatorStructureMulti(nn.Module):
 # layers / blocks
 class ConvBlock(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.LeakyReLU, normalization='Instance'):
-        super().__init__() 
+        super(ConvBlock, self).__init__() 
         self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         
         self.normalization = normalization
@@ -166,7 +163,7 @@ class ConvBlock(nn.Module):
 
 class ConvPoolBlock(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, pooling=True, activation=nn.LeakyReLU):
-        super().__init__()
+        super(ConvPoolBlock, self).__init__()
 
         self.pooling = pooling
 
@@ -186,23 +183,24 @@ class ConvPoolBlock(nn.Module):
 
 class ConvBlockBCIN(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.LeakyReLU, domain_code_size=10, normalization='BCIN'):
-        super().__init__() 
+        super(ConvBlockBCIN, self).__init__() 
         self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         self.norm = BCIN(out_channels, domain_code_size) # not learnable
         self.activation = activation()
 
         self.normalization = normalization
 
-    def forward(self, x, domain_code):
+    def forward(self, inputs):
+        x, domain_code = inputs[0][0], inputs[0][1]
         x = self.conv(x)
         if self.normalization == 'BCIN': 
             x = self.norm(x, domain_code)
         x = self.activation(x)
-        return x
+        return [[x, domain_code]]
 
 class ResBlockIN(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.ReLU):
-        super().__init__()
+        super(ResBlockIN, self).__init__()
         self.conv0 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
 
@@ -233,7 +231,7 @@ class ResBlockIN(nn.Module):
 
 class ResBlockBCIN(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.ReLU, domain_code_size=10, layer_id=0):
-        super().__init__()
+        super(ResBlockBCIN, self).__init__()
         self.conv0 = nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv1 = nn.ConvTranspose2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
 
@@ -246,7 +244,9 @@ class ResBlockBCIN(nn.Module):
 
         self.layer_id = layer_id
 
-    def forward(self, x, domain_code, latent_scale):
+    def forward(self, inputs):
+        x, latent_scale, domain_code = inputs[0][0], inputs[0][1], inputs[0][2]
+        
         x_in = x
         x = self.conv0(x)
         x = torch.mul(x, latent_scale[:,self.layer_id*2,:][:,:,None,None])
@@ -260,7 +260,7 @@ class ResBlockBCIN(nn.Module):
 
         x += self.center_crop(x_in, x)
 
-        return x
+        return [[x, latent_scale, domain_code]]
 
     def center_crop(self, skip_connection, x):
         skip_shape = torch.tensor(skip_connection.shape)
@@ -275,7 +275,7 @@ class ResBlockBCIN(nn.Module):
 
 class LatentScaleLayer(nn.Module):
     def __init__(self):
-        super().__init__()
+        super(LatentScaleLayer, self).__init__()
     
     def forward(self, x, latent_scale):
         return torch.matmul(x, latent_scale[:,None,None,None])
@@ -284,7 +284,7 @@ class LatentScaleLayer(nn.Module):
 
 class BCIN(nn.Module):
     def __init__(self, num_features, domain_code_size, affine=True):
-        super().__init__()
+        super(BCIN, self).__init__()
         self.domain_code_size = domain_code_size
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)
         self.b = nn.Parameter(torch.rand(1), requires_grad=affine)
