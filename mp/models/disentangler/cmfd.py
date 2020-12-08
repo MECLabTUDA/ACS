@@ -33,7 +33,7 @@ class CMFD(Model):
         self.input_shape = input_shape
         self.latent_scaler_sample_size = latent_scaler_sample_size
         self.domain_code_size = domain_code_size
-        # self.device = 'cpu'
+        self.device = 'cpu'
 
         # encoder
         self.enc_con = EncoderContent(in_channels=self.input_shape[0], out_channels=latent_channels)
@@ -56,7 +56,7 @@ class CMFD(Model):
     
     # torch summray
     def forward(self, x):
-        x_hat = self.forward_encoder_generator(x, torch.rand(self.domain_code_size).to('cuda:0'))
+        x_hat = self.forward_encoder_generator(x, torch.rand(self.domain_code_size).to(self.device))
         x_seg = self.forward_segmentation(x)
         
         return x_seg
@@ -66,7 +66,7 @@ class CMFD(Model):
             sample_size = self.latent_scaler_sample_size
         content = self.enc_con(x)
         style_mu_var = self.enc_sty(x)
-        eps = Variable(torch.randn(len(style_mu_var[0]),sample_size)).to('cuda:0')
+        eps = Variable(torch.randn(len(style_mu_var[0]),sample_size)).to(self.device)
         style_sample = style_mu_var[0] + torch.exp(style_mu_var[1] / 2) * eps
 
         return content, style_sample
@@ -88,7 +88,7 @@ class CMFD(Model):
 
     def forward_joint_density_match(self, x):
         x_hat = self.forward_segmentation(x)
-        return torch.cat((x, x_hat), 1)
+        return torch.cat((x, x_hat), 1) 
 
     def forward_struct_discriminator(self, x, domain_code):
         x = self.dis_struc(x, domain_code)
@@ -103,12 +103,12 @@ class CMFD(Model):
         return x
     
     def sample_z(self, shape):
-        x = torch.rand(shape).to('cuda:0')
+        x = torch.rand(shape).to(self.device)
         return x
 
     def to_device(self, device):
+        self.device = device
         self.to(device)
-        # self.dev = device
 
 if __name__ == '__main__':
     import torch
