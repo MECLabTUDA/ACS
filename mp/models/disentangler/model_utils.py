@@ -107,12 +107,10 @@ class DiscriminatorContent(nn.Module):
         
         # added TODO look up PatchGAN
         self.linear = nn.Linear(in_features=6**2, out_features=1) # 21**2
-        self.activation = nn.Sigmoid() 
+        self.activation = nn.Sigmoid()
 
     def forward(self, x):
         x = self.layers(x)
-
-        print(x.shape)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
         x = self.activation(x)
