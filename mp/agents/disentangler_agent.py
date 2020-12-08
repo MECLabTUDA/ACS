@@ -12,7 +12,7 @@ class DisentanglerAgent(Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def perform_training_epoch(self, optimizer, loss_f, train_dataloader, print_run_loss=False):
+    def perform_training_epoch(self, optimizer, loss_f, train_dataloader_0, train_dataloader_1, print_run_loss=False):
         r"""Perform a training epoch
         
         Args:
@@ -20,18 +20,15 @@ class DisentanglerAgent(Agent):
                 printed.
         """
         acc = Accumulator('loss')
-        for _, data in enumerate(train_dataloader):
-            x_i, y_i = self.get_inputs_targets(data)
+        for data_0, data_1 in zip(train_dataloader_0, train_dataloader_1):
             
-            # TODO: remove!!!
-            x_j = x_i
+            x_i, y_i, domain_code_i = self.get_inputs_targets(data_0)
+            x_j, y_j, domain_code_j = self.get_inputs_targets(data_1)
+
+            # TODO: maybe introduce randomness to swap x_i and x_j to train on both diretions?
+
             optimizer.zero_grad()
             
-            domain_code_i = torch.zeros(10).to('cuda:0')
-            domain_code_i[3] = 1
-            domain_code_j = torch.zeros(10).to('cuda:0')
-            domain_code_j[3] = 1
-
             content_x_i, style_sample_x_i = self.model.forward_encoder(x_i)
             latent_scale_x_i = self.model.latent_scaler(style_sample_x_i)
             x_i_hat = self.model.forward_generator(content_x_i, latent_scale_x_i, domain_code_i)
@@ -40,7 +37,7 @@ class DisentanglerAgent(Agent):
             KL_div = nn.KLDivLoss()
             z = self.model.sample_z(style_sample_x_i.shape)
             loss_vae =  KL_div(style_sample_x_i, z) + torch.linalg.norm((x_i_hat-x_i).view(-1,1), ord=1)
-            print('loss_vae', loss_vae)
+            # print('loss_vae', loss_vae)
 
             # content adversarial loss
             domain_x_i = self.model.forward_content_discriminator(content_x_i)
@@ -49,7 +46,7 @@ class DisentanglerAgent(Agent):
             domain_x_j =  self.model.forward_content_discriminator(content_x_j)
 
             loss_c_adv = torch.sum(torch.log(domain_x_i)) + torch.sum(1 - torch.log(domain_x_j))
-            print('loss_c_adv', loss_c_adv)
+            # print('loss_c_adv', loss_c_adv)
             
             # content reconstruction loss
             # content_x_j, style_sample_x_j = self.model.forward_encoder(x_j)
@@ -57,7 +54,7 @@ class DisentanglerAgent(Agent):
             x_j_hat = self.model.forward_generator(content_x_i, latent_scale_x_j, domain_code_j)
             content_x_j_hat, style_sample_x_j_hat = self.model.forward_encoder(x_j_hat)
             loss_c_recon = torch.sum(torch.linalg.norm((content_x_i-content_x_j_hat).view(-1,1), ord=1))
-            print('loss_c_recon', loss_c_recon)
+            # print('loss_c_recon', loss_c_recon)
 
             # latent code regression loss
             latent_scale_z = self.model.latent_scaler(z)
@@ -65,22 +62,22 @@ class DisentanglerAgent(Agent):
             z_hat_content, z_hat_sample = self.model.forward_encoder(z_hat)
             z = self.model.sample_z(z_hat_sample.shape) # as big as generator output
             loss_lcr = torch.sum(torch.linalg.norm((z-z_hat_sample).view(-1,1), ord=1))
-            print('loss_lcr', loss_lcr)
+            # print('loss_lcr', loss_lcr)
             
             # GAN loss
             domain_x_j = self.model.forward_multi_discriminator(x_j, domain_code_j)
             domain_x_j_hat = self.model.forward_multi_discriminator(x_j_hat, domain_code_j)
             domain_z_hat = self.model.forward_multi_discriminator(z_hat, domain_code_j)
             loss_gan = torch.sum(torch.log(domain_x_j)) + torch.sum(0.5*torch.log(1-domain_x_j_hat)) + torch.sum(0.5*torch.log(1-domain_z_hat))
-            print('loss_gan', loss_gan)
+            # print('loss_gan', loss_gan)
 
             # TODO: mode seeking loss
 
             # segmentation loss
-            x_i_seg_in = self.model.forward_generator(content_x_i, latent_scale_x_i, torch.zeros(domain_code_i.shape).to('cuda:0'))
+            x_i_seg_in = self.model.forward_generator(content_x_i, latent_scale_x_i, torch.zeros(domain_code_i.shape).to(self.model.device))
             x_i_seg = self.model.forward_segmentation(x_i_seg_in)
             loss_seg = loss_f(x_i_seg, y_i)
-            print('loss_seg', loss_seg)
+            # print('loss_seg', loss_seg)
 
             # TODO: joint distribution structure discriminator loss
             
@@ -92,21 +89,18 @@ class DisentanglerAgent(Agent):
             lambda_ms = 1
 
             loss = loss_gan + lambda_vae * loss_vae + lambda_c_adv * loss_c_adv + lambda_lcr * loss_lcr + lambda_seg * loss_seg + lambda_c_recon * loss_c_recon # + lambda_ms * loss_ms 
-
-            # for l in [loss_vae, loss_c_adv, loss_lcr, loss_seg, loss_c_recon]:
-            #     print(l)
-                
-            # exit(42)
-            # Optimization step
             loss.backward()
+
+            # Optimization step
             optimizer.step()
 
-            acc.add('loss', float(loss.detach().cpu()), count=len(x_i))
 
-        if print_run_loss:
-            print('\nRunning loss: {}'.format(acc.mean('loss')))
+        #     acc.add('loss', float(loss.detach().cpu()), count=len(x_i))
 
-    def train(self, results, optimizer, loss_f, train_dataloader,
+        # if print_run_loss:
+        #     print('\nRunning loss: {}'.format(acc.mean('loss')))
+
+    def train(self, results, optimizer, loss_f, train_dataloader_0, train_dataloader_1,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
         eval_datasets=dict(), eval_interval=10, 
         save_path=None, save_interval=10):
@@ -120,7 +114,7 @@ class DisentanglerAgent(Agent):
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
-            self.perform_training_epoch(optimizer, loss_f, train_dataloader, 
+            self.perform_training_epoch(optimizer, loss_f, train_dataloader_0, train_dataloader_1, 
                 print_run_loss=print_run_loss)
         
             # Track statistics in results
@@ -147,3 +141,26 @@ class DisentanglerAgent(Agent):
                 print('Epoch {} dataset {}'.format(epoch, ds_name))
                 for metric_key in eval_dict.keys():
                     print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
+
+    def get_inputs_targets(self, data):
+        r"""Prepares a data batch.
+
+        Args:
+            data (tuple): a dataloader item, possibly in cpu
+
+        Returns (tuple): preprocessed data in the selected device.
+        """
+        inputs, targets, domain_code = data
+        inputs, targets, domain_code = inputs.to(self.device), targets.to(self.device), domain_code.to(self.device)
+        inputs = self.model.preprocess_input(inputs)       
+        return inputs, targets.float(), domain_code
+
+    def get_outputs(self, inputs):
+        r"""Returns model outputs.
+        Args:
+            data (torch.tensor): inputs, domain codes
+
+        Returns (torch.tensor): model outputs, with one channel dimension per 
+            label.
+        """
+        pass

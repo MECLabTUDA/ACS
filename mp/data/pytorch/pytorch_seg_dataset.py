@@ -126,6 +126,24 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
             dl_items.append((x.unsqueeze_(0), y.unsqueeze_(0)))
         return dl_items
 
+class PytorchSeg2DDatasetDomain(PytorchSeg2DDataset):
+    r"""Extension of PytorchSeg2DDataset that also returns a one-hot encoded domain code
+    """
+    def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
+        norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False, domain_code=0, domain_code_size=10):
+
+        domain_code_tmp = torch.zeros(10)
+        domain_code_tmp[domain_code] = 1
+        self.domain_code = domain_code_tmp
+
+        super().__init__(dataset, ix_lst=ix_lst, size=size, 
+            norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels, resize=resize)
+
+    def __getitem__(self, idx):
+        r"""Returns x and y values each with shape (c, w, h) and one-hot encoded domain code with shape (domain_code_size,)"""
+        item_super = super().__getitem__(idx)
+        return item_super[0], item_super[1], self.domain_code 
+
 class PytorchSeg3DDataset(PytorchSegmnetationDataset):
     r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
     are resized to the specified size, otherwise they are center-cropped and 
