@@ -54,6 +54,17 @@ class CMFD(Model):
         # latent scaler
         self.latent_scaler = LatentScaler(in_features=self.latent_scaler_sample_size)
     
+    def parallel(self, device_ids=[6,7]):
+        self.enc_con = nn.DataParallel(self.enc_con, device_ids=device_ids)
+        self.enc_sty = nn.DataParallel(self.enc_sty, device_ids=device_ids)
+
+        self.dis_con = nn.DataParallel(self.dis_con, device_ids=device_ids)
+        self.dis_struc = nn.DataParallel(self.enc_con, device_ids=device_ids)
+        self.dis_mul = nn.DataParallel(self.dis_mul, device_ids=device_ids)
+
+        self.gen = nn.DataParallel(self.gen, device_ids=device_ids)
+        self.unet = nn.DataParallel(self.unet, device_ids=device_ids)
+
     # torch summray
     def forward(self, x):
         x_hat = self.forward_encoder_generator(x, torch.rand(self.domain_code_size).to(self.device))
