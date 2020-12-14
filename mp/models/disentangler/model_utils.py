@@ -113,7 +113,7 @@ class DiscriminatorContent(nn.Module):
         x = self.layers(x)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
-        x = self.activation(x)
+        x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
 
 class DiscriminatorStructureMulti(nn.Module):
@@ -130,12 +130,12 @@ class DiscriminatorStructureMulti(nn.Module):
         # added TODO look up PatchGAN
         self.linear = nn.Linear(in_features=7**2, out_features=1) # 24**2
         self.activation = nn.Sigmoid()
-
+    
     def forward(self, x, domain_code):
         x = self.layers([[x, domain_code]])[0][0]
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
-        x = self.activation(x)
+        x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
 
 # layers / blocks

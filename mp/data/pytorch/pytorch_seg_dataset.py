@@ -144,6 +144,15 @@ class PytorchSeg2DDatasetDomain(PytorchSeg2DDataset):
         item_super = super().__getitem__(idx)
         return item_super[0], item_super[1], self.domain_code 
 
+    def get_subject_dataloader(self, subject_ix):
+        dl_items = []
+        idxs = [idx for idx, (instance_idx, slice_idx) in enumerate(self.idxs) 
+            if instance_idx==subject_ix]
+        for idx in idxs:
+            x, y, domain_code = self.__getitem__(idx)
+            dl_items.append((x.unsqueeze_(0), y.unsqueeze_(0), domain_code.unsqueeze_(0)))
+        return dl_items
+
 class PytorchSeg3DDataset(PytorchSegmnetationDataset):
     r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
     are resized to the specified size, otherwise they are center-cropped and 
