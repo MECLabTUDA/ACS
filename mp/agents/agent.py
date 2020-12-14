@@ -27,7 +27,7 @@ class Agent:
         verbose (bool): whether certain info. should be printed during training
     """
     def __init__(self, model, label_names=None, metrics=[], device='cuda:0', 
-        scores_label_weights=None, verbose=True):
+        scores_label_weights=None, verbose=True, summary_writer=None):
         self.model = model
         self.device = device
         self.metrics = metrics
@@ -36,6 +36,8 @@ class Agent:
         self.scores_label_weights = scores_label_weights
         self.verbose = verbose
         self.agent_state_dict = dict()
+        self.summary_writer = summary_writer
+        self.current_epoch = 0
 
     def get_inputs_targets(self, data):
         r"""Prepares a data batch.
@@ -117,6 +119,7 @@ class Agent:
         if init_epoch == 0:
             self.track_metrics(init_epoch, results, loss_f, eval_datasets)
         for epoch in range(init_epoch, init_epoch+nr_epochs):
+            self.current_epoch = epoch
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
             self.perform_training_epoch(optimizer, loss_f, train_dataloader, 
@@ -183,3 +186,12 @@ class Agent:
         except:
             print('State {} could not be restored'.format(state_name))
             return False
+
+    
+    def writer_add_scalar(self, key, value):
+        if self.summary_writer is not None:
+            self.summary_writer.add_scalar(key, value, self.current_epoch)
+
+    def debug_print(self, msg, value, debug=False):
+        if debug:
+            print(msg, value)
