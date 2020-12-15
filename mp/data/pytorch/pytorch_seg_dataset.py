@@ -142,7 +142,7 @@ class PytorchSeg2DDatasetDomain(PytorchSeg2DDataset):
     def __getitem__(self, idx):
         r"""Returns x and y values each with shape (c, w, h) and one-hot encoded domain code with shape (domain_code_size,)"""
         item_super = super().__getitem__(idx)
-        return item_super[0], item_super[1], self.domain_code 
+        return item_super[0], item_super[1], self.domain_code.clone()
 
     def get_subject_dataloader(self, subject_ix):
         dl_items = []
