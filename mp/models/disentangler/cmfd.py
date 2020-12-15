@@ -2,6 +2,7 @@ from mp.models.model import Model
 from mp.models.segmentation.unet_fepegar import UNet2D
 from mp.models.disentangler.model_utils import * # EncoderContent, DiscriminatorContent, EncoderStyle, LatentScaler, BCIN, Generator
 from torch.autograd import Variable
+import torch.optim as optim
 
 class CMFD(Model):
     def __init__(self,
@@ -64,12 +65,43 @@ class CMFD(Model):
 
         self.gen = nn.DataParallel(self.gen, device_ids=device_ids)
         self.unet = nn.DataParallel(self.unet, device_ids=device_ids)
+    
+    def set_optimizers(self, optimizer=optim.Adam, lr=1e-4):
+        self.enc_con_optim = optimizer(self.enc_con.parameters(),lr=lr)
+        self.enc_sty_optim = optimizer(self.enc_sty.parameters(),lr=lr)
 
-    # torch summray
-    def forward(self, x):
-        x_hat = self.forward_encoder_generator(x, torch.rand(self.domain_code_size).to(self.device))
+        self.dis_con_optim = optimizer(self.dis_con.parameters(),lr=lr)
+        self.dis_struc_optim = optimizer(self.dis_struc.parameters(),lr=lr)
+        self.dis_mul_optim = optimizer(self.dis_mul.parameters(),lr=lr)
+
+        self.gen_optim = optimizer(self.gen.parameters(),lr=lr)
+        self.unet_optim = optimizer(self.unet.parameters(),lr=lr)
+    
+    def zero_grad_optimizers(self):
+        self.enc_con_optim.zero_grad()
+        self.enc_sty_optim.zero_grad()
+
+        self.dis_con_optim.zero_grad()
+        self.dis_struc_optim.zero_grad()
+        self.dis_mul_optim.zero_grad()
+
+        self.gen_optim.zero_grad()
+        self.unet_optim.zero_grad()
+
+    def step_optimizers(self):
+        self.enc_con_optim.step()
+        self.enc_sty_optim.step()
+
+        self.dis_con_optim.step()
+        self.dis_struc_optim.step()
+        self.dis_mul_optim.step()
+
+        self.gen_optim.step()
+        self.unet_optim.step()
+
+    def forward(self, x, domain_code):
+        x_hat = self.forward_encoder_generator(x, domain_code.to(self.device))
         x_seg = self.forward_segmentation(x)
-        
         return x_seg
 
     def forward_encoder(self, x, sample_size=0):

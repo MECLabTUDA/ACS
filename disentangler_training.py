@@ -28,14 +28,14 @@ from mp.utils.tensorboard import create_writer
 from mp.models.disentangler.cmfd import CMFD
 
 # TODO: detect anomaly
-# torch.autograd.set_detect_anomaly(True)
+torch.autograd.set_detect_anomaly(True)
 
 # 2. Define configuration
 
 config = {'experiment_name':'test_exp', 'device':'cuda:5',
-    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.95,
+    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
-    'class_weights': (0.,1.), 'lr': 2e-4, 'batch_size': 4, 'domain_code_size':10
+    'class_weights': (0.,1.), 'lr': 1e-4, 'batch_size': 16, 'domain_code_size':10, 'n_samples':5 # # samples per dataloader -> n_samples = None -> all data is used
     }
 device = torch.device(config['device'] if torch.cuda.is_available() else "cpu")
 device_name = torch.cuda.get_device_name(device)
@@ -88,6 +88,7 @@ for run_ix in range(config['nr_runs']):
     for idx, item in enumerate(data.datasets.items()):
         ds_name, ds = item
         for split, data_ixs in exp.splits[ds_name][exp_run.run_ix].items():
+            data_ixs = data_ixs[:config['n_samples']]
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
@@ -122,7 +123,9 @@ for run_ix in range(config['nr_runs']):
         device=device)
     # TODO: fix CELoss
     loss_c = torch.nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    model.set_optimizers(optim.Adam, lr=config['lr'])
+    # 9.1 Set optimizer, pass None because optimizers are saved in model
+    optimizer = None
 
     # 10.1 Create tensorboard SummaryWriter
     writer = create_writer(config, exp.path)
@@ -132,7 +135,8 @@ for run_ix in range(config['nr_runs']):
     agent.train(results, optimizer, loss_g, dl,
         init_epoch=0, nr_epochs=10, run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=1, 
-        save_path=exp_run.paths['states'], save_interval=5)
+        save_path=exp_run.paths['states'], save_interval=1,
+        display_interval=1)
 
     # 11. Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[prostate]'])

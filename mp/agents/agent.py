@@ -162,9 +162,18 @@ class Agent:
             os.makedirs(state_full_path)
             save_model_state(self.model, 'model', state_full_path)
             pkl_dump(self.agent_state_dict, 'agent_state_dict', state_full_path)
-            if optimizer is not None:
-                save_optimizer_state(optimizer, 'optimizer', state_full_path)
-
+            
+            # if no optimizer is set, try to save _optim attributes of model
+            if optimizer is None:
+                attrs = dir(self.model)
+                for att in attrs:
+                    if '_optim' in att:
+                        optim = getattr(self.model, att)
+                        # only save if attribute is optimizer
+                        try:
+                            save_optimizer_state(optim, att, state_full_path)
+                        except:
+                            pass
 
     def restore_state(self, states_path, state_name, optimizer=None):
         r"""Tries to restore a previous agent state, consisting of a model 
