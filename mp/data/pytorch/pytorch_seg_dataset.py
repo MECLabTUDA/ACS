@@ -132,7 +132,7 @@ class PytorchSeg2DDatasetDomain(PytorchSeg2DDataset):
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
         norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False, domain_code=0, domain_code_size=10):
 
-        domain_code_tmp = torch.zeros(10)
+        domain_code_tmp = torch.zeros(domain_code_size)
         domain_code_tmp[domain_code] = 1
         self.domain_code = domain_code_tmp
 
