@@ -37,7 +37,6 @@ class Agent:
         self.verbose = verbose
         self.agent_state_dict = dict()
         self.summary_writer = summary_writer
-        self.current_epoch = 0
 
     def get_inputs_targets(self, data):
         r"""Prepares a data batch.
@@ -197,9 +196,9 @@ class Agent:
             return False
 
     
-    def writer_add_scalar(self, key, value):
+    def writer_add_scalar(self, key, value, epoch):
         if self.summary_writer is not None:
-            self.summary_writer.add_scalar(key, value, self.current_epoch)
+            self.summary_writer.add_scalar(key, value, epoch)
 
     def debug_print(self, msg, value, debug=False):
         if debug:
