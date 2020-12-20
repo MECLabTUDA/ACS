@@ -76,22 +76,19 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0, domain_code_size=domain_code_size)]
-
         for i in range(0,3):
             layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0, domain_code_size=domain_code_size)]
 
         layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
         layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
-
         layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Tanh()]
 
-        self.layers_BCIN = nn.Sequential(*layers_BCIN)
+        self.layers_BCIN = MultiInSequential(*layers_BCIN)
         self.layers = nn.Sequential(*layers)
 
     def forward(self, content, latent_scale, domain_code):
-        x = content
-        x = self.layers_BCIN([[content, latent_scale, domain_code]])[0][0]
-        x = self.layers(x)
+        content, latent_scale, domain_code = self.layers_BCIN(content, latent_scale, domain_code)
+        x = self.layers(content)
         return x
 
 class DiscriminatorContent(nn.Module):
@@ -125,14 +122,14 @@ class DiscriminatorStructureMulti(nn.Module):
         layers += [ConvBlockBCIN(in_channels=128, out_channels=max_channels//2, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
         layers += [ConvBlockBCIN(in_channels=max_channels//2, out_channels=max_channels, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
         layers += [ConvBlockBCIN(in_channels=max_channels, out_channels=1, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size, normalization='None')]
-        self.layers = nn.Sequential(*layers)
+        self.layers = MultiInSequential(*layers)
 
         # added TODO look up PatchGAN
         self.linear = nn.Linear(in_features=7**2, out_features=1) # 24**2
         self.activation = nn.Sigmoid()
     
     def forward(self, x, domain_code):
-        x = self.layers([[x, domain_code]])[0][0]
+        x, domain_code = self.layers(x, domain_code)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
         x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
@@ -188,13 +185,12 @@ class ConvBlockBCIN(nn.Module):
 
         self.normalization = normalization
 
-    def forward(self, inputs):
-        x, domain_code = inputs[0][0], inputs[0][1]
+    def forward(self, x, domain_code):
         x = self.conv(x)
         if self.normalization == 'BCIN': 
             x = self.norm(x, domain_code)
         x = self.activation(x)
-        return [[x, domain_code]]
+        return x, domain_code
 
 class ResBlockIN(nn.Module):
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.ReLU):
@@ -242,8 +238,7 @@ class ResBlockBCIN(nn.Module):
 
         self.layer_id = layer_id
 
-    def forward(self, inputs):
-        x, latent_scale, domain_code = inputs[0][0], inputs[0][1], inputs[0][2]
+    def forward(self, x, latent_scale, domain_code):
         
         x_in = x
         x = self.conv0(x)
@@ -258,7 +253,7 @@ class ResBlockBCIN(nn.Module):
 
         x += self.center_crop(x_in, x)
 
-        return [[x, latent_scale, domain_code]]
+        return x, latent_scale, domain_code
 
     def center_crop(self, skip_connection, x):
         skip_shape = torch.tensor(skip_connection.shape)
@@ -294,6 +289,12 @@ class BCIN(nn.Module):
         bias_scaled = self.activation(bias)
 
         return ((x-x_mean[:,None,None,None]) / x_var[:,None,None,None]) + bias_scaled[:,None,None,None]
+
+class MultiInSequential(nn.Sequential):
+    def forward(self, *input):
+        for module in self._modules.values():
+            input = module(*input)
+        return input
 
 from mp.models.segmentation.unet_fepegar import UNet2D
 
