@@ -32,12 +32,14 @@ from mp.models.disentangler.cmfd import CMFD
 
 # 2. Define configuration
 
-config = {'experiment_name':'', 'device':'cuda', 'device_ids': (5,6),
+config = {'experiment_name':'', 'device':'cuda', 'device_ids': (7),
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.1,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
-    'class_weights': (0.,1.), 'epochs': 50, 'lr': 1e-4, 'batch_size': 16, 'domain_code_size':3, 'n_samples': None # # samples per dataloader -> n_samples = None -> all data is used
+    'class_weights': (0.,1.), 'epochs': 50, 'lr': 1e-4, 'batch_size': 4, 'domain_code_size':3, 'n_samples': 5 # # samples per dataloader -> n_samples = None -> all data is used
     }
 
+if type(config['device_ids']):
+    config['device_ids'] = [config['device_ids']]
 device = torch.device(config['device']+':'+str(config['device_ids'][0]) if torch.cuda.is_available() else "cpu")
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
