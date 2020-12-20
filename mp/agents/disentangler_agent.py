@@ -137,7 +137,7 @@ class DisentanglerAgent(Agent):
 
         return acc
 
-    def train(self, results, optimizer, loss_f, train_dataloader,
+    def train(self, results, loss_f, train_dataloader,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
         eval_datasets=dict(), eval_interval=10, 
         save_path=None, save_interval=10,
@@ -148,7 +148,7 @@ class DisentanglerAgent(Agent):
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
-            acc = self.perform_training_epoch(optimizer, loss_f, train_dataloader,
+            acc = self.perform_training_epoch(loss_f, train_dataloader,
                 print_run_loss=print_run_loss)
 
             # Write losses to tensorboard
@@ -157,7 +157,7 @@ class DisentanglerAgent(Agent):
 
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
-                self.save_state(save_path, 'epoch_{}'.format(epoch + 1), optimizer)
+                self.save_state(save_path, 'epoch_{}'.format(epoch + 1))
 
             # Track statistics in results
             if (epoch + 1) % eval_interval == 0:

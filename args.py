@@ -30,6 +30,10 @@ def _get_parser():
     parser.add_argument('--domain-code-size', type=int, default=3, help='# of domains')
     parser.add_argument('--cross-validation', action='store_true', help='specify if cross validation should be used')
 
+    parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval')
+    parser.add_argument('--save-interval', type=int, default=10, help='save interval')
+    parser.add_argument('--display-interval', type=int, default=1, help='display/tensorboard interval')
+
     return parser
 
 def parse_args(argv):

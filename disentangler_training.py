@@ -111,9 +111,9 @@ for run_ix in range(config['nr_runs']):
     agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'], summary_writer=writer)
     agent.train(results, loss_g, dl,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=5, 
-        save_path=exp_run.paths['states'], save_interval=5,
-        display_interval=1)
+        eval_datasets=datasets, eval_interval=config['eval_interval'], 
+        save_path=exp_run.paths['states'], save_interval=config['save_interval'],
+        display_interval=config['display_interval'])
 
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
