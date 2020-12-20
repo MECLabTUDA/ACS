@@ -14,7 +14,7 @@ class DisentanglerAgent(Agent):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def perform_training_epoch(self, optimizer, loss_f, train_dataloader, print_run_loss=False):
+    def perform_training_epoch(self, loss_f, train_dataloader, print_run_loss=False):
         r"""Perform a training epoch
         
         Args:
@@ -26,31 +26,33 @@ class DisentanglerAgent(Agent):
 
         for data in tqdm(train_dataloader):
             
+            self.model.zero_grad_optimizers()
+
             half_batch = train_dataloader.batch_size // 2
             x, y, domain_code = self.get_inputs_targets(data)
             
             x_i, y_i, domain_code_i = x[:half_batch], y[:half_batch], domain_code[:half_batch]
             x_j, y_j, domain_code_j = x[half_batch:], y[half_batch:], domain_code[half_batch:]
 
-            content_x_i, style_sample_x_i = self.model.forward_encoder(x_i)
+            skip_connections_x_i, content_x_i, style_sample_x_i = self.model.forward_enc(x_i)
             latent_scale_x_i = self.model.latent_scaler(style_sample_x_i)
 
-            x_i_hat = self.model.forward_generator(content_x_i, latent_scale_x_i, domain_code_i)
+            x_i_hat = self.model.forward_gen(content_x_i, latent_scale_x_i, domain_code_i)
             
-            self.model.zero_grad_optimizers()
-
             # VAE loss
             KL_div = nn.KLDivLoss(reduction='batchmean')
             z = self.model.sample_z(style_sample_x_i.shape)
+            if style_sample_x_i.is_cuda:
+                z = z.to(style_sample_x_i.get_device())
             loss_vae =  KL_div(style_sample_x_i, z) + torch.linalg.norm((x_i_hat-x_i).view(-1,1), ord=1)
             acc.add('loss_vae', float(loss_vae.detach().cpu()), count=len(x_i))
             self.debug_print('loss_vae', loss_vae)
 
             # content adversarial loss
-            domain_x_i = self.model.forward_content_discriminator(content_x_i)
+            domain_x_i = self.model.forward_con_dis(content_x_i)
 
-            content_x_j, style_sample_x_j = self.model.forward_encoder(x_j)
-            domain_x_j =  self.model.forward_content_discriminator(content_x_j)
+            skip_connections_x_j, content_x_j, style_sample_x_j = self.model.forward_enc(x_j)
+            domain_x_j =  self.model.forward_con_dis(content_x_j)
 
             loss_c_adv = torch.sum(torch.log(domain_x_i)) + torch.sum(1 - torch.log(domain_x_j))
             acc.add('loss_c_adv', float(loss_c_adv.detach().cpu()), count=len(x_i))
@@ -59,25 +61,27 @@ class DisentanglerAgent(Agent):
             # content reconstruction loss
             # content_x_j, style_sample_x_j = self.model.forward_encoder(x_j)
             latent_scale_x_j = self.model.latent_scaler(style_sample_x_j)
-            x_j_hat = self.model.forward_generator(content_x_i, latent_scale_x_j, domain_code_j)
-            content_x_j_hat, style_sample_x_j_hat = self.model.forward_encoder(x_j_hat)
+            x_j_hat = self.model.forward_gen(content_x_i, latent_scale_x_j, domain_code_j)
+            skip_connections_x_j_hat, content_x_j_hat, style_sample_x_j_hat = self.model.forward_enc(x_j_hat)
             loss_c_recon = torch.sum(torch.linalg.norm((content_x_i-content_x_j_hat).view(-1,1), ord=1))
             acc.add('loss_c_recon', float(loss_c_recon.detach().cpu()), count=len(x_i))
             self.debug_print('loss_c_recon', loss_c_recon)
 
             # latent code regression loss
             latent_scale_z = self.model.latent_scaler(z)
-            z_hat = self.model.forward_generator(content_x_i, latent_scale_z, domain_code_j)
-            z_hat_content, z_hat_sample = self.model.forward_encoder(z_hat)
+            z_hat = self.model.forward_gen(content_x_i, latent_scale_z, domain_code_j)
+            skip_connections_z_hat, z_hat_content, z_hat_sample = self.model.forward_enc(z_hat)
             z = self.model.sample_z(z_hat_sample.shape) # as big as generator output
+            if z_hat_sample.is_cuda:
+                z = z.to(z_hat_sample.get_device())
             loss_lcr = torch.sum(torch.linalg.norm((z-z_hat_sample).view(-1,1), ord=1))
             acc.add('loss_lcr', float(loss_lcr.detach().cpu()), count=len(x_i))
             self.debug_print('loss_lcr', loss_lcr)
             
             # GAN loss
-            domain_x_j = self.model.forward_multi_discriminator(x_j, domain_code_j)
-            domain_x_j_hat = self.model.forward_multi_discriminator(x_j_hat, domain_code_j)
-            domain_z_hat = self.model.forward_multi_discriminator(z_hat, domain_code_j)
+            domain_x_j = self.model.forward_dom_dis(x_j, domain_code_j)
+            domain_x_j_hat = self.model.forward_dom_dis(x_j_hat, domain_code_j)
+            domain_z_hat = self.model.forward_dom_dis(z_hat, domain_code_j)
             # loss_gan = torch.sum(torch.log(domain_x_j)) + torch.sum(0.5*torch.log(1-domain_x_j_hat)) + torch.sum(0.5*torch.log(1-domain_z_hat))
             loss_gan_d = - torch.sum(torch.log(domain_x_j)) - torch.sum(0.5*torch.log(1-domain_x_j_hat)) - torch.sum(0.5*torch.log(1-domain_z_hat))
             loss_gan_d = 3*loss_gan_d
@@ -92,27 +96,22 @@ class DisentanglerAgent(Agent):
             acc.add('loss_gan_g', float(loss_gan_g.detach().cpu()), count=len(x_i))
             # self.debug_print('loss_gan_g', loss_gan_g, True)
 
-            # import numpy as np
-            # if loss_gan.item() == -np.inf:
-            #     print(domain_x_j)
-            #     print(domain_x_j_hat)
-            #     print(domain_z_hat)
-            #     exit(42)
-
             # TODO: mode seeking loss
 
             # segmentation loss
-            x_i_seg_in = self.model.forward_generator(content_x_i, latent_scale_x_i, torch.zeros(domain_code_i.shape).to(self.model.device))
-            x_i_seg = self.model.forward_segmentation(x_i_seg_in)
+            x_i_seg = self.model.forward_dec(skip_connections_x_i, content_x_i)
             loss_seg = loss_f(x_i_seg, y_i)
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
 
-
+            # TODO: visualizations
+            # print('len skip', len(skip_connections_x_i))
+            # for skip in skip_connections_x_i:
+            #     print('skip', skip.shape)
+            # exit(42)
             # from mp.visualization.visualize_imgs import plot_3d_segmentation
             # plot_3d_segmentation(x_i[0].unsqueeze_(0), x_i_seg[0][1].unsqueeze_(0).unsqueeze_(0), save_path='pred.png', img_size=(256, 256), alpha=0.5)
             # plot_3d_segmentation(y_i[0][0].unsqueeze_(0).unsqueeze_(0), y_i[0][1].unsqueeze_(0).unsqueeze_(0), save_path='label.png', img_size=(256, 256), alpha=0.5)
-
 
             # TODO: joint distribution structure discriminator loss
             

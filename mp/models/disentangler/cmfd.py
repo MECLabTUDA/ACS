@@ -5,153 +5,111 @@ from torch.autograd import Variable
 import torch.optim as optim
 
 class CMFD(Model):
+    r''' Cross Modality Feature Disentangler.
+    '''
     def __init__(self,
-            # self,
-            input_shape=(3,256,256),
+            input_shape=(1,256,256),
             nr_labels=2,
-            latent_channels=128,
             domain_code_size=10,
             latent_scaler_sample_size=250
-            # nr_labels,
-            # dimensions: int = 2,
-            # num_encoding_blocks: int = 5,
-            # out_channels_first_layer: int = 64,
-            # normalization: Optional[str] = None,
-            # pooling_type: str = 'max',
-            # upsampling_type: str = 'conv',
-            # preactivation: bool = False,
-            # residual: bool = False,
-            # padding: int = 0,
-            # padding_mode: str = 'zeros',
-            # activation: Optional[str] = 'ReLU',
-            # initial_dilation: Optional[int] = None,
-            # dropout: float = 0,
-            # monte_carlo_dropout: float = 0,
             ):
-
-        super(CMFD, self).__init__()#input_shape=input_shape, nr_labels=nr_labels)
+        r"""Constructor
+        
+        Args:
+            input_shape (tuple of int): input shape of the images
+            nr_labels (int): number of labels for the segmentation
+            domain_code_size (int): size of domain code vector
+            latent_scaler_sample_size (int): number of samples to be used to generate latent scale
+        
+        """
+        super(CMFD, self).__init__()
 
         self.input_shape = input_shape
         self.latent_scaler_sample_size = latent_scaler_sample_size
         self.domain_code_size = domain_code_size
-        self.device = 'cpu'
+
+        # UNet -> segmentor and content encoder
+        self.nr_labels = nr_labels
+        self.unet = UNet2D_dis(self.input_shape, nr_labels)
+        self.enc_con_out_dim = self.unet.bottom_block.out_channels
 
         # encoder
-        self.enc_con = EncoderContent(in_channels=self.input_shape[0], out_channels=latent_channels)
         self.enc_sty = EncoderStyle(in_channels=self.input_shape[0])
 
         # discriminator
-        self.dis_con = DiscriminatorContent(in_channels=latent_channels, max_channels=256, kernel_size=3, stride=1)
-        self.dis_struc = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
-        self.dis_mul = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
+        self.dis_con = DiscriminatorContent(in_channels=self.enc_con_out_dim, max_channels=256, kernel_size=3, stride=1)
+        # self.dis_struc = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
+        self.dis_dom = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
         
         # generator
-        self.gen = Generator(in_channels=latent_channels, out_channels=self.input_shape[0], domain_code_size=self.domain_code_size)
-
-        # segmentor
-        self.nr_labels = nr_labels
-        self.unet = UNet2D(self.input_shape, nr_labels)
+        self.gen = Generator(in_channels=self.enc_con_out_dim, out_channels=self.input_shape[0], domain_code_size=self.domain_code_size)
 
         # latent scaler
         self.latent_scaler = LatentScaler(in_features=self.latent_scaler_sample_size)
     
-    def parallel(self, device_ids=[6,7]):
-        self.enc_con = nn.DataParallel(self.enc_con, device_ids=device_ids)
-        self.enc_sty = nn.DataParallel(self.enc_sty, device_ids=device_ids)
-
-        self.dis_con = nn.DataParallel(self.dis_con, device_ids=device_ids)
-        self.dis_struc = nn.DataParallel(self.enc_con, device_ids=device_ids)
-        self.dis_mul = nn.DataParallel(self.dis_mul, device_ids=device_ids)
-
-        self.gen = nn.DataParallel(self.gen, device_ids=device_ids)
-        self.unet = nn.DataParallel(self.unet, device_ids=device_ids)
-    
     def set_optimizers(self, optimizer=optim.Adam, lr=1e-4):
-        self.enc_con_optim = optimizer(self.enc_con.parameters(),lr=lr)
         self.enc_sty_optim = optimizer(self.enc_sty.parameters(),lr=lr)
-
         self.dis_con_optim = optimizer(self.dis_con.parameters(),lr=lr)
-        self.dis_struc_optim = optimizer(self.dis_struc.parameters(),lr=lr)
-        self.dis_mul_optim = optimizer(self.dis_mul.parameters(),lr=lr)
-
+        self.dis_dom_optim = optimizer(self.dis_dom.parameters(),lr=lr)
         self.gen_optim = optimizer(self.gen.parameters(),lr=lr)
         self.unet_optim = optimizer(self.unet.parameters(),lr=lr)
     
     def zero_grad_optimizers(self):
-        self.enc_con_optim.zero_grad()
         self.enc_sty_optim.zero_grad()
-
         self.dis_con_optim.zero_grad()
-        self.dis_struc_optim.zero_grad()
-        self.dis_mul_optim.zero_grad()
-
+        self.dis_dom_optim.zero_grad()
         self.gen_optim.zero_grad()
         self.unet_optim.zero_grad()
 
     def step_optimizers(self):
-        self.enc_con_optim.step()
         self.enc_sty_optim.step()
-
         self.dis_con_optim.step()
-        self.dis_struc_optim.step()
-        self.dis_mul_optim.step()
-
+        self.dis_dom_optim.step()
         self.gen_optim.step()
         self.unet_optim.step()
 
-    def forward(self, x, domain_code):
-        x_hat = self.forward_encoder_generator(x, domain_code.to(self.device))
-        x_seg = self.forward_segmentation(x)
+    def forward(self, x):
+        skip_connections, content, style_sample = self.forward_encoder(x)
+        x_seg = self.forward_dec( skip_connections, content)
         return x_seg
 
-    def forward_encoder(self, x, sample_size=0):
+    def forward_enc(self, x, sample_size=0):
+        # if no sample size is selected, use latent_scaler_sample_size
         if sample_size <= 0:
             sample_size = self.latent_scaler_sample_size
-        content = self.enc_con(x)
+        
+        skip_connections, content = self.unet.forward_enc(x)
+
+        # forward style encoder and sample from distribution
         style_mu_var = self.enc_sty(x)
-        eps = Variable(torch.randn(len(style_mu_var[0]),sample_size)).to(self.device)
+        eps = Variable(torch.randn(len(style_mu_var[0]),sample_size))
+        if style_mu_var[0].is_cuda:
+            eps = eps.to(style_mu_var[0].get_device())
         style_sample = style_mu_var[0] + torch.exp(style_mu_var[1] / 2) * eps
 
-        return content, style_sample
+        return skip_connections, content, style_sample
 
-    def forward_generator(self, content, latent_scale, domain_code):
-        x_hat = self.gen.forward(content, latent_scale, domain_code)
-        return x_hat
+    def forward_dec(self, skip_connections, content):
+        return self.unet.forward_dec(skip_connections, content)
 
-    def forward_encoder_generator(self, x, domain_code):
-        content, style_sample = self.forward_encoder(x)
-        latent_scale = self.latent_scaler(style_sample)
-        x_hat = self.gen.forward(content, latent_scale, domain_code)
+    def forward_gen(self, content, latent_scale, domain_code):
+        return self.gen.forward(content, latent_scale, domain_code)
 
-        return x_hat
-    
-    def forward_segmentation(self, x):
-        x_seg = self.unet(x)
-        return x_seg
-
-    def forward_joint_density_match(self, x):
-        x_hat = self.forward_segmentation(x)
-        return torch.cat((x, x_hat), 1) 
-
-    def forward_struct_discriminator(self, x, domain_code):
+    def forward_struct_dis(self, x, domain_code):
         x = self.dis_struc(x, domain_code)
         return x
 
-    def forward_multi_discriminator(self, x, domain_code):
-        x = self.dis_mul(x, domain_code)
+    def forward_dom_dis(self, x, domain_code):
+        x = self.dis_dom(x, domain_code)
         return x
 
-    def forward_content_discriminator(self, x):
+    def forward_con_dis(self, x):
         x = self.dis_con(x)
         return x
     
     def sample_z(self, shape):
-        x = torch.rand(shape).to(self.device)
-        return x
-
-    def to_device(self, device):
-        self.device = device
-        self.to(device)
+        # sample from normal distribution
+        return torch.rand(shape)
 
 if __name__ == '__main__':
     import torch

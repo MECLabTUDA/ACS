@@ -1,39 +1,38 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mp.models.segmentation.unet_fepegar import UNet2D
 
-# modules
-class EncoderContent(nn.Module):
-    def __init__(self, in_channels=3, out_channels=256):
-        super(EncoderContent, self).__init__()
-        
-        layers = [ConvBlock(in_channels=in_channels, normalization='Instance', kernel_size=3, stride=2, padding=1)]
-        for _ in range(0, 2):
-            layers += [ConvBlock(normalization='Instance', kernel_size=3, stride=2, padding=1)]
-        
-        for _ in range(0, 4):
-            layers += [ResBlockIN(out_channels=out_channels)]
+### MODULES ###
+class UNet2D_dis(UNet2D):
+    r"""Adaption of UNet2D to access encoder and decoder seperately.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.layers = nn.Sequential(*layers)
+    def forward_enc(self, x):
+        skip_connections, encoding = self.encoder(x)
+        encoding = self.bottom_block(encoding)
+        return skip_connections, encoding
 
-    def forward(self,x):
-        x = self.layers(x)
-        return x
-        
+    def forward_dec(self, skip_connections, encoding):
+        x = self.decoder(skip_connections, encoding)
+        if self.monte_carlo_layer is not None:
+            x = self.monte_carlo_layer(x)
+        return self.classifier(x)
+
 class EncoderStyle(nn.Module):
+    r"""Style Encoder (VAE).
+    """
     def __init__(self, in_channels):
         super(EncoderStyle, self).__init__()
 
         layers = []
-        
         layers += [ConvBlock(in_channels=in_channels, out_channels=256)]
-
         layers += [ConvPoolBlock(in_channels=256, out_channels=64, pooling=False)]
         layers += [ConvPoolBlock(in_channels=64, out_channels=128, pooling=True)]
-        
         layers += [ConvPoolBlock(in_channels=128, out_channels=128, pooling=False)]
         layers += [ConvPoolBlock(in_channels=128, out_channels=192, pooling=True)]
-        
         layers += [ConvPoolBlock(in_channels=192, out_channels=192, pooling=False)]
         layers += [ConvPoolBlock(in_channels=192, out_channels=256, pooling=True)]
 
@@ -54,6 +53,8 @@ class EncoderStyle(nn.Module):
         return [mu, var]
 
 class LatentScaler(nn.Module):
+    r"""Scales samples from style encoding to be injected into the generator.
+    """
     def __init__(self, in_features):
         super(LatentScaler, self).__init__()
 
@@ -72,6 +73,8 @@ class LatentScaler(nn.Module):
         return x
 
 class Generator(nn.Module):
+    r"""Generator using content encoding, scaled style encoding (see LatentScaler) and domain_code to generate images.
+    """
     def __init__(self, in_channels, out_channels, domain_code_size):
         super(Generator, self).__init__()
 
@@ -92,6 +95,8 @@ class Generator(nn.Module):
         return x
 
 class DiscriminatorContent(nn.Module):
+    r"""Content Discriminator.
+    """
     def __init__(self, in_channels, max_channels=512, kernel_size=4, stride=2):
         super(DiscriminatorContent, self).__init__()
 
@@ -114,6 +119,8 @@ class DiscriminatorContent(nn.Module):
         return x
 
 class DiscriminatorStructureMulti(nn.Module):
+    r"""Domain Discriminator.
+    """
     def __init__(self, in_channels, domain_code_size, max_channels=512, kernel_size=4, stride=2):
         super(DiscriminatorStructureMulti, self).__init__()
 
@@ -135,8 +142,10 @@ class DiscriminatorStructureMulti(nn.Module):
         x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
 
-# layers / blocks
+### BUILDING BLOCKS ###
 class ConvBlock(nn.Module):
+    r"""Convolutional Block with normalization and activation.
+    """
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.LeakyReLU, normalization='Instance'):
         super(ConvBlock, self).__init__() 
         self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
@@ -157,6 +166,8 @@ class ConvBlock(nn.Module):
         return x
 
 class ConvPoolBlock(nn.Module):
+    r"""Convolutional Block with normalization, activation and pooling.
+    """
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, pooling=True, activation=nn.LeakyReLU):
         super(ConvPoolBlock, self).__init__()
 
@@ -177,6 +188,8 @@ class ConvPoolBlock(nn.Module):
         return x
 
 class ConvBlockBCIN(nn.Module):
+    r"""Convolutional Block with BCIN normalization and activation.
+    """
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.LeakyReLU, domain_code_size=10, normalization='BCIN'):
         super(ConvBlockBCIN, self).__init__() 
         self.conv = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
@@ -193,6 +206,8 @@ class ConvBlockBCIN(nn.Module):
         return x, domain_code
 
 class ResBlockIN(nn.Module):
+    r"""Residual Block consisting of two convolutions with skip connection, instance normalization and activation.
+    """
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.ReLU):
         super(ResBlockIN, self).__init__()
         self.conv0 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
@@ -224,6 +239,8 @@ class ResBlockIN(nn.Module):
         return skip_connection
 
 class ResBlockBCIN(nn.Module):
+    r"""Residual Block consisting of two convolutions with skip connection, BCIN normalization and activation.
+    """
     def __init__(self, in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=0, activation=nn.ReLU, domain_code_size=10, layer_id=0):
         super(ResBlockBCIN, self).__init__()
         self.conv0 = nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
@@ -266,16 +283,12 @@ class ResBlockBCIN(nn.Module):
         skip_connection = F.pad(skip_connection, pad.tolist())
         return skip_connection
 
-class LatentScaleLayer(nn.Module):
-    def __init__(self):
-        super(LatentScaleLayer, self).__init__()
-    
-    def forward(self, x, latent_scale):
-        return torch.matmul(x, latent_scale[:,None,None,None])
-    
-# normalization
+### NORMALIZATION ###
 
 class BCIN(nn.Module):
+    r"""Central Biasing Instance Normalization
+    https://arxiv.org/abs/1806.10050
+    """
     def __init__(self, num_features, domain_code_size, affine=True):
         super(BCIN, self).__init__()
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)
@@ -290,25 +303,11 @@ class BCIN(nn.Module):
 
         return ((x-x_mean[:,None,None,None]) / x_var[:,None,None,None]) + bias_scaled[:,None,None,None]
 
+### HELPER MODULES ###
 class MultiInSequential(nn.Sequential):
+    r"""Sequential class that allows multiple inputs for forward function
+    """
     def forward(self, *input):
         for module in self._modules.values():
             input = module(*input)
         return input
-
-from mp.models.segmentation.unet_fepegar import UNet2D
-
-class UNet2D_dis(UNet2D):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def forward_enc(self, x):
-        skip_connections, encoding = self.encoder(x)
-        encoding = self.bottom_block(encoding)
-        return skip_connections, encoding
-
-    def forward_dec(self, skip_connections, encoding):
-        x = self.decoder(skip_connections, encoding)
-        if self.monte_carlo_layer is not None:
-            x = self.monte_carlo_layer(x)
-        return self.classifier(x)

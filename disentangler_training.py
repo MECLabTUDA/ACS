@@ -87,8 +87,8 @@ for run_ix in range(config['nr_runs']):
     dl = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
 
     # Initialize model
-    model = CMFD(config['input_shape'] , latent_channels=256, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
-    model.to_device(config['device'])
+    model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
+    model.to(config['device'])
     # if len(config['device_ids']) > 1:
     #     print('Using data parallel on devices', config['device_ids'])
         # model.parallel(device_ids=config['device_ids'])
@@ -102,8 +102,6 @@ for run_ix in range(config['nr_runs']):
 
     # Set optimizers
     model.set_optimizers(optim.Adam, lr=config['lr'])
-    # Set optimizer, pass None because optimizers are saved in model
-    optimizer = None
 
     # Create tensorboard SummaryWriter
     writer = create_writer(config, exp.path)
@@ -111,7 +109,7 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')   
     agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'], summary_writer=writer)
-    agent.train(results, optimizer, loss_g, dl,
+    agent.train(results, loss_g, dl,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=5, 
         save_path=exp_run.paths['states'], save_interval=5,
