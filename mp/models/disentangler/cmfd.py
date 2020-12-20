@@ -46,7 +46,7 @@ class CMFD(Model):
         self.dis_mul = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
         
         # generator
-        self.gen = Generator(in_channels=latent_channels, out_channels=self.input_shape[0])
+        self.gen = Generator(in_channels=latent_channels, out_channels=self.input_shape[0], domain_code_size=self.domain_code_size)
 
         # segmentor
         self.nr_labels = nr_labels
@@ -162,7 +162,11 @@ if __name__ == '__main__':
     # content = enc_con.forward(sample)
     # print('CONTENT SHAPE', content.shape)
     # dis_con = DiscriminatorContent(in_channels=256)
-    content = torch.rand(8,256,230,230)
+    input_shape=(3,256,256)
+    unet = UNet2D_dis(input_shape, nr_labels=2)
+    skip_connections, encoding = unet.forward_enc(sample)
+    print('UNET', len(skip_connections), encoding.shape)
+    # content = torch.rand(8,256,230,230)
     # content_label = dis_con.forward(content)
     # print('DISC CONTENT LABEL', content_label.shape)
     # exit(32)
@@ -176,10 +180,14 @@ if __name__ == '__main__':
     eps = Variable(torch.randn(len(style_mu_var[0]),250))
     style_sample = style_mu_var[0] + torch.exp(style_mu_var[1] / 2) * eps
 
-    gen = Generator(in_channels=256, out_channels=4)
+    gen = Generator(in_channels=256, out_channels=4, domain_code_size=10)
     domain_code = torch.zeros(10)
     domain_code[3] = 1
-    gen_out = gen.forward(content, domain_code, style_sample)
+
+    latent_scaler = LatentScaler(in_features=250)
+    latent_scale = latent_scaler.forward(style_sample)
+
+    gen_out = gen.forward(encoding, latent_scale, domain_code)
     print(gen_out.shape)
     # # ls = LatentScaler(in_features=28)
     # # ls.forward(torch.rand(8, 28))

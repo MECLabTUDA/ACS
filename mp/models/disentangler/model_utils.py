@@ -72,13 +72,13 @@ class LatentScaler(nn.Module):
         return x
 
 class Generator(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, domain_code_size):
         super(Generator, self).__init__()
 
-        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0)]
+        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0, domain_code_size=domain_code_size)]
 
         for i in range(0,3):
-            layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0)]
+            layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0, domain_code_size=domain_code_size)]
 
         layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
         layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
@@ -283,17 +283,31 @@ class LatentScaleLayer(nn.Module):
 class BCIN(nn.Module):
     def __init__(self, num_features, domain_code_size, affine=True):
         super(BCIN, self).__init__()
-        self.domain_code_size = domain_code_size
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)
         self.b = nn.Parameter(torch.rand(1), requires_grad=affine)
-
         self.activation = nn.Tanh()
 
     def forward(self, x, domain_code):
         x_var = torch.sqrt(torch.var(x, (1,2,3))) # instance std
         x_mean = torch.mean(x, (1,2,3)) # instance mean
-
         bias = torch.matmul(domain_code, self.W) * self.b
         bias_scaled = self.activation(bias)
 
         return ((x-x_mean[:,None,None,None]) / x_var[:,None,None,None]) + bias_scaled[:,None,None,None]
+
+from mp.models.segmentation.unet_fepegar import UNet2D
+
+class UNet2D_dis(UNet2D):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def forward_enc(self, x):
+        skip_connections, encoding = self.encoder(x)
+        encoding = self.bottom_block(encoding)
+        return skip_connections, encoding
+
+    def forward_dec(self, skip_connections, encoding):
+        x = self.decoder(skip_connections, encoding)
+        if self.monte_carlo_layer is not None:
+            x = self.monte_carlo_layer(x)
+        return self.classifier(x)

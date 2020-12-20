@@ -28,24 +28,24 @@ from mp.utils.tensorboard import create_writer
 from mp.models.disentangler.cmfd import CMFD
 
 # TODO: detect anomaly
-torch.autograd.set_detect_anomaly(True)
+# torch.autograd.set_detect_anomaly(True)
 
 # 2. Define configuration
 
-config = {'experiment_name':'test_exp', 'device':'cuda:5',
-    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
+config = {'experiment_name':'', 'device':'cuda', 'device_ids': (5,6),
+    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.1,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
-    'class_weights': (0.,1.), 'lr': 1e-4, 'batch_size': 16, 'domain_code_size':10, 'n_samples':5 # # samples per dataloader -> n_samples = None -> all data is used
+    'class_weights': (0.,1.), 'epochs': 50, 'lr': 1e-4, 'batch_size': 16, 'domain_code_size':3, 'n_samples': None # # samples per dataloader -> n_samples = None -> all data is used
     }
-device = torch.device(config['device'] if torch.cuda.is_available() else "cpu")
+
+device = torch.device(config['device']+':'+str(config['device_ids'][0]) if torch.cuda.is_available() else "cpu")
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
-input_shape = config['input_shape']  
 
-assert config['batch_size'] % 2 == 0
+assert config['batch_size'] % 2 == 0, 'batch_size has to be multiple of 2'
 
 # 3. Create experiment directories
-exp = Experiment(config=config, name='', notes='', reload_exp=True) # config['experiment_name']
+exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
 
 # 4. Define data
 # data = Data()
@@ -73,8 +73,7 @@ nr_labels = data.nr_labels
 label_names = data.label_names
 train_ds_a = ('DecathlonHippocampus', 'train')
 train_ds_b = ('DryadHippocampus', 'train')
-test_ds_c = ('HarP', 'test')
-# test_ds_b = ('DecathlonHippocampus1', 'test')
+# test_ds_c = ('HarP', 'test')
 
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
@@ -92,7 +91,7 @@ for run_ix in range(config['nr_runs']):
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
-                    ix_lst=data_ixs, size=input_shape, aug_key=aug, 
+                    ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
                     resize=config['resize'], domain_code=idx, domain_code_size=config['domain_code_size'])
 
     # 6.1 combine datasets
@@ -113,9 +112,11 @@ for run_ix in range(config['nr_runs']):
     dl = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
 
     # 8. Initialize model
-    model = CMFD(input_shape, latent_channels=256, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
+    model = CMFD(config['input_shape']  , latent_channels=256, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
     model.to_device(device)
-    model.parallel(device_ids=[5,6])
+    if len(config['device_ids']) > 1:
+        print('Using data parallel on devices', config['device_ids'])
+        model.parallel(device_ids=config['device_ids'])
 
     # 9. Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
@@ -133,16 +134,18 @@ for run_ix in range(config['nr_runs']):
     results = Result(name='training_trajectory')   
     agent = DisentanglerAgent(model=model, label_names=label_names, device=device, summary_writer=writer)
     agent.train(results, optimizer, loss_g, dl,
-        init_epoch=0, nr_epochs=10, run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=1, 
-        save_path=exp_run.paths['states'], save_interval=1,
+        init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
+        eval_datasets=datasets, eval_interval=5, 
+        save_path=exp_run.paths['states'], save_interval=5,
         display_interval=1)
 
     # 11. Save and print results for this experiment run
-    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[prostate]'])
-    test_ds_key = '_'.join(test_ds_c)
-    metric = 'Mean_ScoreDice[prostate]'
-    last_dice = results.get_epoch_metric(
-        results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    print('Last Dice score for prostate class: {}'.format(last_dice))
-
+    exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
+    # test_ds_key = '_'.join(test_ds_c)
+    # metric = 'Mean_LossDice[smooth=1.0]'
+    
+    # print(results.results.keys())
+    
+    # last_dice = results.get_epoch_metric(
+    #     results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
+    # print('Last Dice score for hippocampus class: {}'.format(last_dice))

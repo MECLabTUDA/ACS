@@ -34,6 +34,7 @@ class DisentanglerAgent(Agent):
 
             content_x_i, style_sample_x_i = self.model.forward_encoder(x_i)
             latent_scale_x_i = self.model.latent_scaler(style_sample_x_i)
+
             x_i_hat = self.model.forward_generator(content_x_i, latent_scale_x_i, domain_code_i)
             
             self.model.zero_grad_optimizers()
@@ -107,6 +108,12 @@ class DisentanglerAgent(Agent):
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
 
+
+            # from mp.visualization.visualize_imgs import plot_3d_segmentation
+            # plot_3d_segmentation(x_i[0].unsqueeze_(0), x_i_seg[0][1].unsqueeze_(0).unsqueeze_(0), save_path='pred.png', img_size=(256, 256), alpha=0.5)
+            # plot_3d_segmentation(y_i[0][0].unsqueeze_(0).unsqueeze_(0), y_i[0][1].unsqueeze_(0).unsqueeze_(0), save_path='label.png', img_size=(256, 256), alpha=0.5)
+
+
             # TODO: joint distribution structure discriminator loss
             
             lambda_vae = 1
@@ -140,7 +147,6 @@ class DisentanglerAgent(Agent):
         tracks metrics and saves model states.
         """
         for epoch in range(init_epoch, init_epoch+nr_epochs):
-            self.current_epoch = epoch
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
             acc = self.perform_training_epoch(optimizer, loss_f, train_dataloader,
@@ -148,7 +154,7 @@ class DisentanglerAgent(Agent):
 
             # Write losses to tensorboard
             if (epoch + 1) % display_interval == 0:
-                self.track_loss(acc)
+                self.track_loss(acc, epoch + 1)
 
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
@@ -172,23 +178,23 @@ class DisentanglerAgent(Agent):
             if self.verbose:
                 print('Epoch {} dataset {}'.format(epoch, ds_name))
                 for metric_key in eval_dict.keys():
-                    self.writer_add_scalar(f'metric/{metric_key}/{ds_name}', eval_dict[metric_key]['mean'])
+                    self.writer_add_scalar(f'metric/{metric_key}/{ds_name}', eval_dict[metric_key]['mean'], epoch)
                     print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
 
-    def track_loss(self, acc):
+    def track_loss(self, acc, epoch):
         r'''Tracks loss in tensorboard.
 
         Args:
             acc (Accumulator): accumulator containing the tracked losses
         '''
-        self.writer_add_scalar('loss/loss_vae', acc.mean('loss_vae'))
-        self.writer_add_scalar('loss/loss_c_adv', acc.mean('loss_c_adv'))
-        self.writer_add_scalar('loss/loss_c_recon', acc.mean('loss_c_recon'))
-        self.writer_add_scalar('loss/loss_lcr', acc.mean('loss_lcr'))
-        self.writer_add_scalar('loss/loss_gan_d', acc.mean('loss_gan_d'))
-        self.writer_add_scalar('loss/loss_gan_g', acc.mean('loss_gan_g'))
-        self.writer_add_scalar('loss/loss_seg', acc.mean('loss_seg'))
-        self.writer_add_scalar('loss/loss_comb', acc.mean('loss_comb'))
+        self.writer_add_scalar('loss/loss_vae', acc.mean('loss_vae'), epoch)
+        self.writer_add_scalar('loss/loss_c_adv', acc.mean('loss_c_adv'), epoch)
+        self.writer_add_scalar('loss/loss_c_recon', acc.mean('loss_c_recon'), epoch)
+        self.writer_add_scalar('loss/loss_lcr', acc.mean('loss_lcr'), epoch)
+        self.writer_add_scalar('loss/loss_gan_d', acc.mean('loss_gan_d'), epoch)
+        self.writer_add_scalar('loss/loss_gan_g', acc.mean('loss_gan_g'), epoch)
+        self.writer_add_scalar('loss/loss_seg', acc.mean('loss_seg'), epoch)
+        self.writer_add_scalar('loss/loss_comb', acc.mean('loss_comb'), epoch)
 
     def get_inputs_targets(self, data):
         r"""Prepares a data batch.
