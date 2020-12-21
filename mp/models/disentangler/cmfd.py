@@ -47,6 +47,17 @@ class CMFD(Model):
         # latent scaler
         self.latent_scaler = LatentScaler(in_features=self.latent_scaler_sample_size)
     
+    def set_data_parallel(self, device_ids):
+        self.unet.encoder = nn.DataParallel(self.unet.encoder, device_ids)
+        self.unet.bottom_block = nn.DataParallel(self.unet.bottom_block, device_ids)
+        self.unet.decoder = nn.DataParallel(self.unet.decoder, device_ids)
+
+        self.enc_sty = nn.DataParallel(self.enc_sty, device_ids)
+        self.dis_con = nn.DataParallel(self.dis_con, device_ids)
+        self.dis_dom = nn.DataParallel(self.dis_dom, device_ids)
+        self.gen = nn.DataParallel(self.gen, device_ids)
+        self.latent_scaler = nn.DataParallel(self.latent_scaler, device_ids)
+        
     def set_optimizers(self, optimizer=optim.Adam, lr=1e-4):
         self.enc_sty_optim = optimizer(self.enc_sty.parameters(),lr=lr)
         self.dis_con_optim = optimizer(self.dis_con.parameters(),lr=lr)
@@ -85,9 +96,13 @@ class CMFD(Model):
         eps = Variable(torch.randn(len(style_mu_var[0]),sample_size))
         if style_mu_var[0].is_cuda:
             eps = eps.to(style_mu_var[0].get_device())
+            
         style_sample = style_mu_var[0] + torch.exp(style_mu_var[1] / 2) * eps
-
+        
         return skip_connections, content, style_sample
+
+    def forward_style_enc(self, x):
+        return self.enc_sty(x)
 
     def forward_dec(self, skip_connections, content):
         return self.unet.forward_dec(skip_connections, content)

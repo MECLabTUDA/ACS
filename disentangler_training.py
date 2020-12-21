@@ -53,15 +53,15 @@ dataset_domain_b = DryadHippocampus(merge_labels=True)
 dataset_domain_b.name = 'DryadHippocampus'
 data.add_dataset(dataset_domain_b)
 
-# dataset_domain_c = HarP(merge_labels=True)
-# dataset_domain_c.name = 'HarP'
-# data.add_dataset(dataset_domain_c)
+dataset_domain_c = HarP(merge_labels=True)
+dataset_domain_c.name = 'HarP'
+data.add_dataset(dataset_domain_c)
 
 nr_labels = data.nr_labels
 label_names = data.label_names
 train_ds_a = ('DecathlonHippocampus', 'train')
 train_ds_b = ('DryadHippocampus', 'train')
-# test_ds_c = ('HarP', 'test')
+test_ds_c = ('HarP', 'test')
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -84,16 +84,15 @@ for run_ix in range(config['nr_runs']):
 
     # Combine datasets
     multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
-    dl = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True)
+    dl = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
 
     # Initialize model
     model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
     model.to(config['device'])
-    # if len(config['device_ids']) > 1:
-    #     print('Using data parallel on devices', config['device_ids'])
-        # model.parallel(device_ids=config['device_ids'])
+    if len(config['device_ids']) > 1:
         # model = nn.DataParallel(model, device_ids=config['device_ids'])
-
+        model.set_data_parallel(config['device_ids'])
+        print('Using GPUs:', config['device_ids'])
     # Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=config['device'])
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], device=config['device'])
@@ -109,6 +108,11 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')   
     agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'], summary_writer=writer)
+    
+    # from tqdm import tqdm
+    # for data in tqdm(dl):
+    #     pass
+    
     agent.train(results, loss_g, dl,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=config['eval_interval'], 
@@ -125,3 +129,10 @@ for run_ix in range(config['nr_runs']):
     # last_dice = results.get_epoch_metric(
     #     results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
     # print('Last Dice score for hippocampus class: {}'.format(last_dice))
+
+    import mp.visualization.visualize_imgs as vis
+    # Visualize result for the first subject in the test dataset
+    # subject_ix = 0
+    # subject = datasets[test_ds].instances[subject_ix].get_subject()
+    # pred = datasets[test_ds].predictor.get_subject_prediction(agent, subject_ix)
+    # vis.plot_3d_subject_pred(subject, pred)
