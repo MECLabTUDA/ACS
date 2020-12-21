@@ -59,6 +59,11 @@ class PytorchSegmnetationDataset(PytorchDataset):
     def transform_subject(self, subject):
         r"""Tranform a subject by applying normalization and augmentation ops"""
         if self.norm is not None:
+            
+            if torch.isnan(subject['x'].data).any() or torch.isnan(subject['y'].data).any():
+                subject['x'].data[torch.isnan(subject['x'].data)] = 0
+                subject['y'].data[torch.isnan(subject['y'].data)] = 0
+
             subject = self.norm(subject)
         if self.aug is not None:
             subject = self.aug(subject)
