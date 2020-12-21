@@ -42,6 +42,7 @@ class Experiment:
             self.name = self.time_str
         else:
             self.name = name
+        print('Experiment name:', self.name)
         # Set path in defined storage directory
         self.path = os.path.join(os.path.join(storage_path, 'exp'), self.name)
         # Restore files
