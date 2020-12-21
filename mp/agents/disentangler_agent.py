@@ -9,6 +9,8 @@ from mp.eval.evaluate import ds_losses_metrics, ds_losses_metrics_domain
 from mp.eval.accumulator import Accumulator
 from tqdm import tqdm
 
+from torch.nn import functional as F
+
 class DisentanglerAgent(Agent):
     r"""An Agent for autoencoder models."""
     def __init__(self, *args, **kwargs):
@@ -40,12 +42,18 @@ class DisentanglerAgent(Agent):
             x_i_hat = self.model.forward_gen(content_x_i, latent_scale_x_i, domain_code_i)
             
             # VAE loss
-            KL_div = nn.KLDivLoss(reduction='batchmean')
-            z = self.model.sample_z(style_sample_x_i.shape)
-            if style_sample_x_i.is_cuda:
-                z = z.to(style_sample_x_i.get_device())
-            loss_vae =  KL_div(style_sample_x_i, z) + torch.linalg.norm((x_i_hat-x_i).view(-1,1), ord=1)
+            # KL_div = nn.KLDivLoss(reduction='batchmean')
+            # z = self.model.sample_z(style_sample_x_i.shape)
+            # if style_sample_x_i.is_cuda:
+            #     z = z.to(style_sample_x_i.get_device())
+            # loss_vae =  KL_div(style_sample_x_i, z) + torch.linalg.norm((x_i_hat-x_i).view(-1,1), ord=1)
+            mu, log_var = self.model.forward_style_enc(x_i) 
+            loss_dict = self.loss_function(x_i_hat, x_i, mu, log_var)
+            loss_vae = loss_dict['loss']
             acc.add('loss_vae', float(loss_vae.detach().cpu()), count=len(x_i))
+            acc.add('loss_vae_Reconstruction_Loss', float(loss_dict['Reconstruction_Loss'].detach().cpu()), count=len(x_i))
+            acc.add('loss_vae_KLD', float(loss_dict['KLD'].detach().cpu()), count=len(x_i))
+
             self.debug_print('loss_vae', loss_vae)
 
             # content adversarial loss
@@ -54,7 +62,7 @@ class DisentanglerAgent(Agent):
             skip_connections_x_j, content_x_j, style_sample_x_j = self.model.forward_enc(x_j)
             domain_x_j =  self.model.forward_con_dis(content_x_j)
 
-            loss_c_adv = torch.sum(torch.log(domain_x_i)) + torch.sum(1 - torch.log(domain_x_j))
+            loss_c_adv = torch.sum(torch.log(domain_x_i) + (1 - torch.log(domain_x_j)))
             acc.add('loss_c_adv', float(loss_c_adv.detach().cpu()), count=len(x_i))
             self.debug_print('loss_c_adv', loss_c_adv)
             
@@ -68,6 +76,9 @@ class DisentanglerAgent(Agent):
             self.debug_print('loss_c_recon', loss_c_recon)
 
             # latent code regression loss
+            z = self.model.sample_z(style_sample_x_i.shape)
+            if style_sample_x_i.is_cuda:
+                z = z.to(style_sample_x_i.get_device())
             latent_scale_z = self.model.latent_scaler(z)
             z_hat = self.model.forward_gen(content_x_i, latent_scale_z, domain_code_j)
             skip_connections_z_hat, z_hat_content, z_hat_sample = self.model.forward_enc(z_hat)
@@ -104,7 +115,25 @@ class DisentanglerAgent(Agent):
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
 
+
             # TODO: visualizations
+
+            # print(x_i_seg.shape, x_i_seg[:,0,:,:].max(), x_i_seg[:,0,:,:].min(), x_i_seg[:,1,:,:].max(), x_i_seg[:,1,:,:].min())
+            import matplotlib.pyplot as plt
+
+            # # plt.plot()
+            # test_img = x_i_seg[0,0,:,:].cpu().detach()
+            # test_img = (test_img - test_img.min()) / (test_img.max() - test_img.min())
+            # plt.imsave('test0.png', test_img)
+
+            # test_img = x_i[0,0,:,:].cpu().detach()
+            # test_img = (test_img - test_img.min()) / (test_img.max() - test_img.min())
+            # plt.imsave('test1.png', test_img)
+
+            # plt.imsave('test1.png', x_i_seg[1,0,:,:].cpu().detach())
+            # plt.imsave('test2.png', x_i_seg[2,0,:,:].cpu().detach())
+            # plt.imsave('test3.png', x_i_seg[3,0,:,:].cpu().detach())
+
             # print('len skip', len(skip_connections_x_i))
             # for skip in skip_connections_x_i:
             #     print('skip', skip.shape)
@@ -117,10 +146,9 @@ class DisentanglerAgent(Agent):
             
             lambda_vae = 1
             lambda_c_adv = 1
-            lambda_lcr = 10
+            lambda_lcr = 1e-3
             lambda_seg = 5
-            lambda_c_recon = 1
-            lambda_ms = 1
+            lambda_c_recon = 1e-3
             
             loss_comb_no_gan = lambda_vae * loss_vae + lambda_c_adv * loss_c_adv + lambda_lcr * loss_lcr + lambda_seg * loss_seg + lambda_c_recon * loss_c_recon # + lambda_ms * loss_ms 
             loss_comb_no_gan.backward()
@@ -136,6 +164,32 @@ class DisentanglerAgent(Agent):
             print('\nrunning loss: {} - time/epoch {}'.format(acc.mean('loss_comb'), round(time.time()-start_time, 4)))
 
         return acc
+
+    def loss_function(self,
+                      *args,
+                      **kwargs) -> dict:
+        """
+        Computes the VAE loss function.
+        Source: https://github.com/AntixK/PyTorch-VAE/blob/20c4dfa73dfc36f42970ccc334a42f37ffe08dcc/models/vanilla_vae.py
+        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        recons = args[0]
+        input = args[1]
+        mu = args[2]
+        log_var = args[3]
+
+        # Source: https://github.com/AntixK/PyTorch-VAE/blob/20c4dfa73dfc36f42970ccc334a42f37ffe08dcc/tests/test_vae.py
+        kld_weight = 0.005 # kwargs['M_N'] # Account for the minibatch samples from the dataset
+        recons_loss =F.mse_loss(recons, input)
+
+
+        kld_loss = torch.mean(- 0.5 * torch.sum(1 + log_var - mu ** 2 - log_var.exp(), dim = 1), dim = 0)
+
+        loss = recons_loss + kld_weight * kld_loss
+        return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
 
     def train(self, results, loss_f, train_dataloader,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
@@ -194,6 +248,10 @@ class DisentanglerAgent(Agent):
         self.writer_add_scalar('loss/loss_gan_g', acc.mean('loss_gan_g'), epoch)
         self.writer_add_scalar('loss/loss_seg', acc.mean('loss_seg'), epoch)
         self.writer_add_scalar('loss/loss_comb', acc.mean('loss_comb'), epoch)
+        
+        self.writer_add_scalar('loss/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
+        self.writer_add_scalar('loss/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
+        
 
     def get_inputs_targets(self, data):
         r"""Prepares a data batch.
