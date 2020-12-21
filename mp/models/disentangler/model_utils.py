@@ -49,8 +49,8 @@ class EncoderStyle(nn.Module):
         x = self.layers(x)
         x = self.global_pool(x)
         mu = self.dense_mu(x.view(x.shape[0], -1))
-        var = self.dense_var(x.view(x.shape[0], -1))
-        return [mu, var]
+        log_var = self.dense_var(x.view(x.shape[0], -1))
+        return [mu, log_var]
 
 class LatentScaler(nn.Module):
     r"""Scales samples from style encoding to be injected into the generator.
