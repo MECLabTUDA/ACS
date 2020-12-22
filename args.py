@@ -19,7 +19,7 @@ def _get_parser():
     parser.add_argument('--val-ratio', type=int, default=0.0, help='ratio of data to be used for validation')
     parser.add_argument('--input_dim_c', type=int, default=1, help='input channels for images') 
     parser.add_argument('--input_dim_hw', type=int, default=256, help='height and width for images')
-    parser.add_argument('--resize', action='store_true', help='specify if images should be resized')
+    parser.add_argument('--no-resize', action='store_true', help='specify if images should not be resized')
     parser.add_argument('--augmentation', type=str, default='none', help='augmentation to be used')
     parser.add_argument('--n-samples', type=int, default=None, help='# of samples per dataloader, only use when debugging')
 
@@ -30,7 +30,7 @@ def _get_parser():
     parser.add_argument('--domain-code-size', type=int, default=3, help='# of domains')
     parser.add_argument('--cross-validation', action='store_true', help='specify if cross validation should be used')
 
-    parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval')
+    parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval -> all datasets')
     parser.add_argument('--save-interval', type=int, default=10, help='save interval')
     parser.add_argument('--display-interval', type=int, default=1, help='display/tensorboard interval')
 
@@ -43,8 +43,8 @@ def parse_args(argv):
     parser = _get_parser()
     args = parser.parse_args(argv)
     
-    args.device = str(args.device+':'+str(args.device_ids[0]) if torch.cuda.is_available() else "cpu")
-    device_name = torch.cuda.get_device_name(args.device)
+    args.device = str(args.device+':'+str(args.device_ids[0]) if torch.cuda.is_available() and args.device == "cuda" else "cpu")
+    device_name = str(torch.cuda.get_device_name(args.device) if args.device == "cuda" else args.device)
     print('Device name: {}'.format(device_name))
 
     args.input_shape = (args.input_dim_c, args.input_dim_hw, args.input_dim_hw)
