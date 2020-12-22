@@ -61,7 +61,7 @@ nr_labels = data.nr_labels
 label_names = data.label_names
 train_ds_a = ('DecathlonHippocampus', 'train')
 train_ds_b = ('DryadHippocampus', 'train')
-test_ds_c = ('HarP', 'test')
+test_ds_c = ('HarP', 'train')
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -80,11 +80,13 @@ for run_ix in range(config['nr_runs']):
                 aug = config['augmentation'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
-                    resize=config['resize'], domain_code=idx, domain_code_size=config['domain_code_size'])
+                    resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
 
     # Combine datasets
     multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
-    dl = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
+    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
+    
+    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
 
     # Initialize model
     model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
@@ -113,9 +115,9 @@ for run_ix in range(config['nr_runs']):
     # for data in tqdm(dl):
     #     pass
     
-    agent.train(results, loss_g, dl,
+    agent.train(results, loss_g, train_dataloader, test_dataloader,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=config['eval_interval'], 
+        eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
         display_interval=config['display_interval'])
 
