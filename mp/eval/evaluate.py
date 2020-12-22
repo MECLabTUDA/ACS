@@ -25,7 +25,7 @@ def dl_losses_domain(dl, agent, loss_f):
     acc = Accumulator()
     for data in dl:
         inputs, targets, domain_code = agent.get_inputs_targets(data)
-        outputs = agent.get_outputs(inputs, domain_code)
+        outputs = agent.get_outputs(inputs)
         # Calculate losses
         loss_dict = loss_f.get_evaluation_dict(outputs, targets)
         # Add to the accumulator   
