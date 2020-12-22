@@ -197,9 +197,19 @@ class Agent:
 
     
     def writer_add_scalar(self, key, value, epoch):
+        r"""Adds a scalar to tensorboard tracking.
+        """
         if self.summary_writer is not None:
             self.summary_writer.add_scalar(key, value, epoch)
+    
+    def writer_add_image(self, key, img, epoch):
+        r"""Adds an image to tensorboard tracking.
+        """
+        if self.summary_writer is not None:
+            self.summary_writer.add_image(key, img, epoch)
 
     def debug_print(self, msg, value, debug=False):
+        r"""Random debugging printer function ... 
+        """
         if debug:
             print(msg, value)

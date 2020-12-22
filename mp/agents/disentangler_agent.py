@@ -2,6 +2,7 @@
 # A disentangler agent.
 # ------------------------------------------------------------------------------
 import time
+import os
 import torch
 import torch.nn as nn
 from mp.agents.agent import Agent
@@ -10,6 +11,11 @@ from mp.eval.accumulator import Accumulator
 from tqdm import tqdm
 
 from torch.nn import functional as F
+
+from mp.visualization.visualize_imgs import plot_3d_segmentation
+from PIL import Image
+import torchvision.transforms.functional as TF
+
 
 class DisentanglerAgent(Agent):
     r"""An Agent for autoencoder models."""
@@ -115,33 +121,6 @@ class DisentanglerAgent(Agent):
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
 
-
-            # TODO: visualizations
-
-            # print(x_i_seg.shape, x_i_seg[:,0,:,:].max(), x_i_seg[:,0,:,:].min(), x_i_seg[:,1,:,:].max(), x_i_seg[:,1,:,:].min())
-            import matplotlib.pyplot as plt
-
-            # # plt.plot()
-            # test_img = x_i_seg[0,0,:,:].cpu().detach()
-            # test_img = (test_img - test_img.min()) / (test_img.max() - test_img.min())
-            # plt.imsave('test0.png', test_img)
-
-            # test_img = x_i[0,0,:,:].cpu().detach()
-            # test_img = (test_img - test_img.min()) / (test_img.max() - test_img.min())
-            # plt.imsave('test1.png', test_img)
-
-            # plt.imsave('test1.png', x_i_seg[1,0,:,:].cpu().detach())
-            # plt.imsave('test2.png', x_i_seg[2,0,:,:].cpu().detach())
-            # plt.imsave('test3.png', x_i_seg[3,0,:,:].cpu().detach())
-
-            # print('len skip', len(skip_connections_x_i))
-            # for skip in skip_connections_x_i:
-            #     print('skip', skip.shape)
-            # exit(42)
-            # from mp.visualization.visualize_imgs import plot_3d_segmentation
-            # plot_3d_segmentation(x_i[0].unsqueeze_(0), x_i_seg[0][1].unsqueeze_(0).unsqueeze_(0), save_path='pred.png', img_size=(256, 256), alpha=0.5)
-            # plot_3d_segmentation(y_i[0][0].unsqueeze_(0).unsqueeze_(0), y_i[0][1].unsqueeze_(0).unsqueeze_(0), save_path='label.png', img_size=(256, 256), alpha=0.5)
-
             # TODO: joint distribution structure discriminator loss
             
             lambda_vae = 1
@@ -191,23 +170,28 @@ class DisentanglerAgent(Agent):
         loss = recons_loss + kld_weight * kld_loss
         return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
 
-    def train(self, results, loss_f, train_dataloader,
+    def train(self, results, loss_f, train_dataloader, test_dataloader,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
-        eval_datasets=dict(), eval_interval=10, 
+        eval_datasets=dict(), eval_interval=10,
         save_path=None, save_interval=10,
         display_interval=1):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
         for epoch in range(init_epoch, init_epoch+nr_epochs):
+
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
-            acc = self.perform_training_epoch(loss_f, train_dataloader,
-                print_run_loss=print_run_loss)
+            acc = self.perform_training_epoch(loss_f, train_dataloader, print_run_loss=print_run_loss)
 
             # Write losses to tensorboard
             if (epoch + 1) % display_interval == 0:
                 self.track_loss(acc, epoch + 1)
+
+            # Create visualizations and write them to tensorboard
+            if (epoch + 1) % display_interval == 0:
+                self.track_visualization(train_dataloader, save_path, epoch)
+                self.track_visualization(test_dataloader, save_path, epoch, 'test')
 
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
@@ -234,25 +218,60 @@ class DisentanglerAgent(Agent):
                     self.writer_add_scalar(f'metric/{metric_key}/{ds_name}', eval_dict[metric_key]['mean'], epoch)
                     print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
 
-    def track_loss(self, acc, epoch):
+    def track_loss(self, acc, epoch, phase='train'):
         r'''Tracks loss in tensorboard.
 
         Args:
             acc (Accumulator): accumulator containing the tracked losses
+            phase (string): either "test" or "train"
         '''
-        self.writer_add_scalar('loss/loss_vae', acc.mean('loss_vae'), epoch)
-        self.writer_add_scalar('loss/loss_c_adv', acc.mean('loss_c_adv'), epoch)
-        self.writer_add_scalar('loss/loss_c_recon', acc.mean('loss_c_recon'), epoch)
-        self.writer_add_scalar('loss/loss_lcr', acc.mean('loss_lcr'), epoch)
-        self.writer_add_scalar('loss/loss_gan_d', acc.mean('loss_gan_d'), epoch)
-        self.writer_add_scalar('loss/loss_gan_g', acc.mean('loss_gan_g'), epoch)
-        self.writer_add_scalar('loss/loss_seg', acc.mean('loss_seg'), epoch)
-        self.writer_add_scalar('loss/loss_comb', acc.mean('loss_comb'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_vae', acc.mean('loss_vae'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_c_adv', acc.mean('loss_c_adv'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_c_recon', acc.mean('loss_c_recon'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_lcr', acc.mean('loss_lcr'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_gan_d', acc.mean('loss_gan_d'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_gan_g', acc.mean('loss_gan_g'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_seg', acc.mean('loss_seg'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_comb', acc.mean('loss_comb'), epoch)
         
-        self.writer_add_scalar('loss/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
-        self.writer_add_scalar('loss/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
+        self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
         
+    def track_visualization(self, dataloader, save_path, epoch, phase='train'):
+        r'''Creates visualizations and tracks them in tensorboard.
 
+        Args:
+            dataloader (Dataloader): dataloader to draw sample from
+            save_path (string): path for the images to be saved (one folder up)
+            phase (string): either "test" or "train"
+        '''
+        for imgs in dataloader:
+            x_i, y_i, domain_code_i = self.get_inputs_targets(imgs)
+            x_i_seg = self.model(x_i)
+            break
+
+        x_i_img = x_i[0].unsqueeze(0)
+        x_i_seg_mask = x_i_seg[0][1].unsqueeze(0).unsqueeze(0)
+        y_i_seg_mask = y_i[0][1].unsqueeze(0).unsqueeze(0)
+
+        save_path = os.path.join(save_path, '..', 'imgs')
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+
+        save_path_pred = os.path.join(save_path, f'e_{epoch:06d}_{phase}_pred.png')
+        save_path_label = os.path.join(save_path, f'e_{epoch:06d}_{phase}_label.png')
+        
+        plot_3d_segmentation(x_i_img, x_i_seg_mask, save_path=save_path_pred, img_size=(256, 256), alpha=0.5)
+        plot_3d_segmentation(x_i_img, y_i_seg_mask, save_path=save_path_label, img_size=(256, 256), alpha=0.5)
+
+        image = Image.open(save_path_pred)
+        image = TF.to_tensor(image)
+        self.writer_add_image(f'imgs_{phase}/pred', image, epoch)
+
+        image = Image.open(save_path_label)
+        image = TF.to_tensor(image)
+        self.writer_add_image(f'imgs_{phase}/label', image, epoch)
+        
     def get_inputs_targets(self, data):
         r"""Prepares a data batch.
 
@@ -266,7 +285,7 @@ class DisentanglerAgent(Agent):
         inputs = self.model.preprocess_input(inputs)       
         return inputs, targets.float(), domain_code
 
-    def get_outputs(self, inputs, domain_code):
+    def get_outputs(self, inputs):
         r"""Returns model outputs.
         Args:
             inputs (torch.tensor): inputs
@@ -274,4 +293,4 @@ class DisentanglerAgent(Agent):
         Returns (torch.tensor): model outputs, with one channel dimension per 
             label.
         """
-        return self.model.forward(inputs, domain_code)
+        return self.model.forward(inputs)

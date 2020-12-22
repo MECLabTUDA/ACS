@@ -80,8 +80,8 @@ class CMFD(Model):
         self.unet_optim.step()
 
     def forward(self, x):
-        skip_connections, content, style_sample = self.forward_encoder(x)
-        x_seg = self.forward_dec( skip_connections, content)
+        skip_connections, content, style_sample = self.forward_enc(x)
+        x_seg = self.forward_dec(skip_connections, content)
         return x_seg
 
     def forward_enc(self, x, sample_size=0):
