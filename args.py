@@ -13,6 +13,7 @@ def _get_parser():
     # hardware
     parser.add_argument('--device', type=str, default='cuda', help='device type cpu or cuda')
     parser.add_argument("--device-ids", nargs="+", default=[0], type=int, help="ID(s) of GPU device(s)")
+    parser.add_argument('--n-workers', type=int, default=2, help='# multiplied by # of GPU to get # of total workers')
 
     # dataset
     parser.add_argument('--test-ratio', type=int, default=0.0, help='ratio of data to be used for testing')

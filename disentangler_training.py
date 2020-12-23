@@ -84,9 +84,9 @@ for run_ix in range(config['nr_runs']):
 
     # Combine datasets
     multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
-    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
+    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*config['n_workers'])
     
-    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*4)
+    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
     # Initialize model
     model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
