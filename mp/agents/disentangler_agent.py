@@ -100,9 +100,10 @@ class DisentanglerAgent(Agent):
             domain_x_j_hat = self.model.forward_dom_dis(x_j_hat, domain_code_j)
             domain_z_hat = self.model.forward_dom_dis(z_hat, domain_code_j)
             # loss_gan = torch.sum(torch.log(domain_x_j)) + torch.sum(0.5*torch.log(1-domain_x_j_hat)) + torch.sum(0.5*torch.log(1-domain_z_hat))
-            loss_gan_d = - torch.sum(torch.log(domain_x_j)) - torch.sum(0.5*torch.log(1-domain_x_j_hat)) - torch.sum(0.5*torch.log(1-domain_z_hat))
-            loss_gan_d = 3*loss_gan_d
             loss_gan_g = torch.sum(0.5*torch.log(1-domain_x_j_hat)) + torch.sum(0.5*torch.log(1-domain_z_hat))
+            loss_gan_d = - (torch.sum(torch.log(domain_x_j)) + loss_gan_g)
+            # TODO: check whether tripple update of discriminator is still required
+            loss_gan_d = 3 * loss_gan_d
             
             loss_gan_d.backward(retain_graph=True)
             loss_gan_g.backward(retain_graph=True)
