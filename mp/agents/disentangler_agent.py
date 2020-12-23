@@ -122,6 +122,18 @@ class DisentanglerAgent(Agent):
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
 
+            # convert unet output to 0-1-mask by normalizing and thresholding
+            threshold = 0.5
+            sig = nn.Sigmoid()
+            # t_x = (x_i_seg[:,1,:,:] - x_i_seg[:,1,:,:].min()) / (x_i_seg[:,1,:,:].max() - x_i_seg[:,1,:,:].min())
+            t_x = sig(x_i_seg[:,1,:,:])
+            t_x = (t_x>threshold).int()
+            t_y = (y_i[:,1,:,:]>threshold).int()
+            
+            # calculate mean iou over batch
+            iou = self.iou_pytorch(t_x, t_y)
+            acc.add('iou', float(iou.detach().cpu()), count=len(x_i))
+            
             # TODO: joint distribution structure discriminator loss
             
             lambda_vae = 1
@@ -144,6 +156,27 @@ class DisentanglerAgent(Agent):
             print('\nrunning loss: {} - time/epoch {}'.format(acc.mean('loss_comb'), round(time.time()-start_time, 4)))
 
         return acc
+
+    
+
+    def iou_pytorch(self, outputs: torch.Tensor, labels: torch.Tensor):
+        '''IoU implementation from https://www.kaggle.com/iezepov/fast-iou-scoring-metric-in-pytorch-and-numpy
+        '''
+        SMOOTH = 1e-6
+
+        # You can comment out this line if you are passing tensors of equal shape
+        # But if you are passing output from UNet or something it will most probably
+        # be with the BATCH x 1 x H x W shape
+        outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+        
+        intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
+        union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
+        
+        iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+        
+        thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
+        
+        return thresholded.mean()  # Or thresholded.mean() if you are interested in average across the batch
 
     def loss_function(self,
                       *args,
@@ -238,6 +271,8 @@ class DisentanglerAgent(Agent):
         self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
         self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
         
+        self.writer_add_scalar(f'metric/iou_{phase}', acc.mean('iou'), epoch)
+        
     def track_visualization(self, dataloader, save_path, epoch, phase='train'):
         r'''Creates visualizations and tracks them in tensorboard.
 
@@ -252,7 +287,10 @@ class DisentanglerAgent(Agent):
             break
 
         x_i_img = x_i[0].unsqueeze(0)
-        x_i_seg_mask = x_i_seg[0][1].unsqueeze(0).unsqueeze(0)
+        x_i_seg = x_i_seg[0][1].unsqueeze(0).unsqueeze(0)
+        sig = nn.Sigmoid()
+        threshold = 0.5
+        x_i_seg_mask = (sig(x_i_seg) > threshold).int()
         y_i_seg_mask = y_i[0][1].unsqueeze(0).unsqueeze(0)
 
         save_path = os.path.join(save_path, '..', 'imgs')
