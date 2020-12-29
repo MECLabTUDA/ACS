@@ -84,9 +84,9 @@ for run_ix in range(config['nr_runs']):
 
     # Combine datasets
     multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
-    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True,)#, num_workers=len(config['device_ids'])*config['n_workers'])
     
-    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True,)#d, num_workers=len(config['device_ids'])*config['n_workers'])
 
     # Initialize model
     model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
@@ -112,8 +112,10 @@ for run_ix in range(config['nr_runs']):
     agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'], summary_writer=writer)
     
     # from tqdm import tqdm
-    # for data in tqdm(dl):
-    #     pass
+    # for i in range(10):
+    #     for data in tqdm(zip(train_dataloader, test_dataloader)):
+    #         pass
+    # exit(42)
     
     agent.train(results, loss_g, train_dataloader, test_dataloader,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,

@@ -61,6 +61,7 @@ class PytorchSegmnetationDataset(PytorchDataset):
         if self.norm is not None:
             
             if torch.isnan(subject['x'].data).any() or torch.isnan(subject['y'].data).any():
+                print('Encountered NaN!')
                 subject['x'].data[torch.isnan(subject['x'].data)] = 0
                 subject['y'].data[torch.isnan(subject['y'].data)] = 0
 
@@ -102,6 +103,7 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
         r"""Returns x and y values each with shape (c, w, h)"""
         instance_idx, slice_idx = self.idxs[idx]
 
+        # print('reading', instance_idx, 'using copy.deepcopy and multi workers')
         subject = copy.deepcopy(self.instances[instance_idx].get_subject())
         subject.load()
 
