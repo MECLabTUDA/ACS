@@ -114,4 +114,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# dataset files
 dataset
+
+# logs
+*log
+log*
