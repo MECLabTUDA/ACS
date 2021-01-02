@@ -4,6 +4,19 @@
 
 import torch
 import os
+from copy import copy
+
+def save_model_state_dataparallel(model, name, path):
+    r"""Saves a pytorch model that was encapsulated in nn.DataParallel."""
+    if not os.path.exists(path):
+        os.makedirs(path)
+    full_path = os.path.join(path, name)
+    state_dict = model.state_dict()
+    state_dict_iter = copy(state_dict)
+    # remove DataParallel specific .module 
+    for key in state_dict_iter.keys():
+        state_dict[key.replace('.module', '')] = state_dict.pop(key)
+    torch.save(state_dict, full_path)
 
 def save_model_state(model, name, path):
     r"""Saves a pytorch model."""

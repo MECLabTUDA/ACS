@@ -6,18 +6,23 @@ import os
 import torch
 import torch.nn as nn
 from mp.agents.agent import Agent
+from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.evaluate import ds_losses_metrics, ds_losses_metrics_domain
 from mp.eval.accumulator import Accumulator
 from tqdm import tqdm
 
+from mp.utils.pytorch.pytorch_load_restore import load_model_state, save_optimizer_state, load_optimizer_state, save_model_state_dataparallel
+
 from torch.nn import functional as F
+from mp.utils.tensorboard import create_writer
 
 from mp.visualization.visualize_imgs import plot_3d_segmentation
 from PIL import Image
 import torchvision.transforms.functional as TF
+from mp.utils.load_restore import pkl_dump, pkl_load
 
 
-class DisentanglerAgent(Agent):
+class DisentanglerAgent(SegmentationAgent):
     r"""An Agent for autoencoder models."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,7 +59,7 @@ class DisentanglerAgent(Agent):
             #     z = z.to(style_sample_x_i.get_device())
             # loss_vae =  KL_div(style_sample_x_i, z) + torch.linalg.norm((x_i_hat-x_i).view(-1,1), ord=1)
             mu, log_var = self.model.forward_style_enc(x_i) 
-            loss_dict = self.loss_function(x_i_hat, x_i, mu, log_var)
+            loss_dict = self.vae_loss(x_i_hat, x_i, mu, log_var)
             loss_vae = loss_dict['loss']
             acc.add('loss_vae', float(loss_vae.detach().cpu()), count=len(x_i))
             acc.add('loss_vae_Reconstruction_Loss', float(loss_dict['Reconstruction_Loss'].detach().cpu()), count=len(x_i))
@@ -121,18 +126,6 @@ class DisentanglerAgent(Agent):
             loss_seg = loss_f(x_i_seg, y_i)
             acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
             self.debug_print('loss_seg', loss_seg)
-
-            # convert unet output to 0-1-mask by normalizing and thresholding
-            threshold = 0.5
-            sig = nn.Sigmoid()
-            # t_x = (x_i_seg[:,1,:,:] - x_i_seg[:,1,:,:].min()) / (x_i_seg[:,1,:,:].max() - x_i_seg[:,1,:,:].min())
-            t_x = sig(x_i_seg[:,1,:,:])
-            t_x = (t_x>threshold).int()
-            t_y = (y_i[:,1,:,:]>threshold).int()
-            
-            # calculate mean iou over batch
-            iou = self.iou_pytorch(t_x, t_y)
-            acc.add('iou', float(iou.detach().cpu()), count=len(x_i))
             
             # TODO: joint distribution structure discriminator loss
             
@@ -159,26 +152,26 @@ class DisentanglerAgent(Agent):
 
     
 
-    def iou_pytorch(self, outputs: torch.Tensor, labels: torch.Tensor):
-        '''IoU implementation from https://www.kaggle.com/iezepov/fast-iou-scoring-metric-in-pytorch-and-numpy
-        '''
-        SMOOTH = 1e-6
+    # def iou_pytorch(self, outputs: torch.Tensor, labels: torch.Tensor):
+    #     '''IoU implementation from https://www.kaggle.com/iezepov/fast-iou-scoring-metric-in-pytorch-and-numpy
+    #     '''
+    #     SMOOTH = 1e-6
 
-        # You can comment out this line if you are passing tensors of equal shape
-        # But if you are passing output from UNet or something it will most probably
-        # be with the BATCH x 1 x H x W shape
-        outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
+    #     # You can comment out this line if you are passing tensors of equal shape
+    #     # But if you are passing output from UNet or something it will most probably
+    #     # be with the BATCH x 1 x H x W shape
+    #     outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
         
-        intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
-        union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
+    #     intersection = (outputs & labels).float().sum((1, 2))  # Will be zero if Truth=0 or Prediction=0
+    #     union = (outputs | labels).float().sum((1, 2))         # Will be zzero if both are 0
         
-        iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+    #     iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
         
-        thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
+    #     thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
         
-        return thresholded.mean()  # Or thresholded.mean() if you are interested in average across the batch
+    #     return thresholded.mean()  # Or thresholded.mean() if you are interested in average across the batch
 
-    def loss_function(self,
+    def vae_loss(self,
                       *args,
                       **kwargs) -> dict:
         """
@@ -208,33 +201,51 @@ class DisentanglerAgent(Agent):
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
         eval_datasets=dict(), eval_interval=10,
         save_path=None, save_interval=10,
-        display_interval=1):
+        display_interval=1, resume_epoch=None, device_ids=[0]):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
-        for epoch in range(init_epoch, init_epoch+nr_epochs):
+        
+        self.agent_state_dict['epoch'] = init_epoch
 
-            print_run_loss = (epoch + 1) % run_loss_print_interval == 0
+        # Resume training at resume_epoch
+        if resume_epoch is not None:
+            self.restore_state(save_path, resume_epoch)
+            init_epoch = self.agent_state_dict['epoch'] + 1
+            
+        # Create tensorboard summary writer 
+        self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
+
+        # Move model to GPUs
+        if len(device_ids) > 1:
+            self.model.set_data_parallel(device_ids)
+        print('Using GPUs:', device_ids)
+
+        for epoch in range(init_epoch, init_epoch+nr_epochs):
+            
+            self.agent_state_dict['epoch'] = epoch
+            
+            print_run_loss = (epoch+1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
             acc = self.perform_training_epoch(loss_f, train_dataloader, print_run_loss=print_run_loss)
 
             # Write losses to tensorboard
-            if (epoch + 1) % display_interval == 0:
-                self.track_loss(acc, epoch + 1)
+            if (epoch+1) % display_interval == 0:
+                self.track_loss(acc, epoch+1)
 
             # Create visualizations and write them to tensorboard
-            if (epoch + 1) % display_interval == 0:
-                self.track_visualization(train_dataloader, save_path, epoch)
-                self.track_visualization(test_dataloader, save_path, epoch, 'test')
+            if (epoch+1) % display_interval == 0:
+                self.track_visualization(train_dataloader, save_path, epoch+1)
+                self.track_visualization(test_dataloader, save_path, epoch+1, 'test')
 
             # Save agent and optimizer state
-            if (epoch + 1) % save_interval == 0 and save_path is not None:
-                self.save_state(save_path, 'epoch_{}'.format(epoch + 1))
+            if (epoch+1) % save_interval == 0 and save_path is not None:
+                self.save_state(save_path, epoch+1)
 
             # Track statistics in results
-            if (epoch + 1) % eval_interval == 0:
-                self.track_metrics(epoch + 1, results, loss_f, eval_datasets)
-    
+            if (epoch+1) % eval_interval == 0:
+                self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+
     def track_metrics(self, epoch, results, loss_f, datasets):
         r"""Tracks metrics. Losses and scores are calculated for each 3D subject, 
         and averaged over the dataset.
@@ -271,8 +282,6 @@ class DisentanglerAgent(Agent):
         self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
         self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
         
-        self.writer_add_scalar(f'metric/iou_{phase}', acc.mean('iou'), epoch)
-        
     def track_visualization(self, dataloader, save_path, epoch, phase='train'):
         r'''Creates visualizations and tracks them in tensorboard.
 
@@ -283,15 +292,14 @@ class DisentanglerAgent(Agent):
         '''
         for imgs in dataloader:
             x_i, y_i, domain_code_i = self.get_inputs_targets(imgs)
-            x_i_seg = self.model(x_i)
+            x_i_seg = self.get_outputs(x_i)
             break
 
         x_i_img = x_i[0].unsqueeze(0)
         x_i_seg = x_i_seg[0][1].unsqueeze(0).unsqueeze(0)
-        sig = nn.Sigmoid()
         threshold = 0.5
-        x_i_seg_mask = (sig(x_i_seg) > threshold).int()
-        y_i_seg_mask = y_i[0][1].unsqueeze(0).unsqueeze(0)
+        x_i_seg_mask = (x_i_seg > threshold).int()
+        y_i_seg_mask = y_i[0][1].unsqueeze(0).unsqueeze(0).int()
 
         save_path = os.path.join(save_path, '..', 'imgs')
         if not os.path.exists(save_path):
@@ -324,12 +332,56 @@ class DisentanglerAgent(Agent):
         inputs = self.model.preprocess_input(inputs)       
         return inputs, targets.float(), domain_code
 
-    def get_outputs(self, inputs):
-        r"""Returns model outputs.
-        Args:
-            inputs (torch.tensor): inputs
-            domain_code (torch.tensor): domain codes
-        Returns (torch.tensor): model outputs, with one channel dimension per 
-            label.
+    def save_state(self, states_path, epoch, optimizer=None, overwrite=False):
+        r"""Saves an agent state. Raises an error if the directory exists and 
+        overwrite=False.
         """
-        return self.model.forward(inputs)
+        if states_path is not None:
+            state_name = f'epoch_{epoch:04d}'
+            state_full_path = os.path.join(states_path, state_name)
+            if os.path.exists(state_full_path):
+                if not overwrite:
+                    raise FileExistsError
+                shutil.rmtree(state_full_path)
+            os.makedirs(state_full_path)
+            save_model_state_dataparallel(self.model, 'model', state_full_path)
+            pkl_dump(self.agent_state_dict, 'agent_state_dict', state_full_path)
+            
+            # if no optimizer is set, try to save _optim attributes of model
+            # if optimizer is None:
+            #     attrs = dir(self.model)
+            #     for att in attrs:
+            #         if '_optim' in att:
+            #             optim = getattr(self.model, att)
+            #             # only save if attribute is optimizer
+            #             try:
+            #                 save_optimizer_state(optim, att, state_full_path)
+            #             except:
+            #                 pass
+
+    def restore_state(self, states_path, epoch, optimizer=None):
+        r"""Tries to restore a previous agent state, consisting of a model 
+        state and the content of agent_state_dict. Returns whether the restore 
+        operation  was successful.
+        """
+        
+        if epoch == -1:
+            state_name = os.listdir(states_path)[-1]
+        else:
+            state_name = f'epoch_{epoch:04d}'
+        
+        state_full_path = os.path.join(states_path, state_name)
+        try:
+            correct_load = load_model_state(self.model, 'model', state_full_path, device=self.device)
+            assert correct_load
+            agent_state_dict = pkl_load('agent_state_dict', state_full_path)
+            assert agent_state_dict is not None
+            self.agent_state_dict = agent_state_dict
+            # if optimizer is not None: 
+            #     load_optimizer_state(optimizer, 'optimizer', state_full_path, device=self.device)
+            if self.verbose:
+                print('State {} was restored'.format(state_name))
+            return True
+        except:
+            print('State {} could not be restored'.format(state_name))
+            return False

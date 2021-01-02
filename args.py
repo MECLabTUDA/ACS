@@ -7,7 +7,7 @@ def _get_parser():
     parser = argparse.ArgumentParser()
 
     # general
-    parser.add_argument('--experiment-name', type=str, default='', help='experiment name')
+    parser.add_argument('--experiment-name', type=str, default='', help='experiment name for new or resume')
     parser.add_argument('--nr-runs', type=int, default=1, help='# of runs')
 
     # hardware
@@ -34,6 +34,8 @@ def _get_parser():
     parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval -> all datasets')
     parser.add_argument('--save-interval', type=int, default=10, help='save interval')
     parser.add_argument('--display-interval', type=int, default=1, help='display/tensorboard interval')
+
+    parser.add_argument('--resume-epoch', type=int, default=None, help='resume training at epoch, -1 for latest, select run using experiment-name argument')
 
     return parser
 

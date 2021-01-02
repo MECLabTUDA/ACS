@@ -30,7 +30,6 @@ from mp.utils.tensorboard import create_writer
 
 from mp.models.disentangler.cmfd import CMFD
 
-# TODO: detect anomaly
 # torch.autograd.set_detect_anomaly(True)
 
 # Get configuration from arguments
@@ -40,7 +39,7 @@ seed_all(42)
 config['class_weights'] = (0., 1.)
 
 # Create experiment directories
-exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
+exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
 
 # Datasets
 data = Data()
@@ -68,7 +67,7 @@ exp.set_data_splits(data)
 
 # Now repeat for each repetition
 for run_ix in range(config['nr_runs']):
-    exp_run = exp.get_run(run_ix=0)
+    exp_run = exp.get_run(run_ix=0, reload_exp_run=(config['resume_epoch'] is not None))
 
     # Bring data to Pytorch format and add domain_code
     datasets = dict()
@@ -83,6 +82,7 @@ for run_ix in range(config['nr_runs']):
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
 
     # Combine datasets
+    # multi_domain_dataset = datasets[(train_ds_a)]
     multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
     train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True,)#, num_workers=len(config['device_ids'])*config['n_workers'])
     
@@ -91,10 +91,7 @@ for run_ix in range(config['nr_runs']):
     # Initialize model
     model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
     model.to(config['device'])
-    if len(config['device_ids']) > 1:
-        # model = nn.DataParallel(model, device_ids=config['device_ids'])
-        model.set_data_parallel(config['device_ids'])
-        print('Using GPUs:', config['device_ids'])
+
     # Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=config['device'])
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], device=config['device'])
@@ -104,24 +101,17 @@ for run_ix in range(config['nr_runs']):
     # Set optimizers
     model.set_optimizers(optim.Adam, lr=config['lr'])
 
-    # Create tensorboard SummaryWriter
-    writer = create_writer(config, exp.path)
-    
     # Train model
     results = Result(name='training_trajectory')   
-    agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'], summary_writer=writer)
-    
-    # from tqdm import tqdm
-    # for i in range(10):
-    #     for data in tqdm(zip(train_dataloader, test_dataloader)):
-    #         pass
-    # exit(42)
+    agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'])#, summary_writer=writer)
     
     agent.train(results, loss_g, train_dataloader, test_dataloader,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
-        display_interval=config['display_interval'])
+        display_interval=config['display_interval'],
+        resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
+
 
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
