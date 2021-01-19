@@ -18,8 +18,10 @@ AUGMENTATION_STRATEGIES = {'none':None,
     'standard': torchio.transforms.Compose([
         torchio.transforms.OneOf({
             torchio.transforms.RandomElasticDeformation(p=0.1,
-                num_control_points=(7,7,7), 
-                max_displacement=7.5): 0.7,
+                # num_control_points=(7,7,7), 
+                # max_displacement=7.5): 0.7,
+                num_control_points=(5,5,5), 
+                max_displacement=5.5): 0.7,
             torchio.RandomAffine(p=0.1,
                 scales=(0.5, 1.5),
                 degrees=(5),
@@ -41,6 +43,20 @@ AUGMENTATION_STRATEGIES = {'none':None,
             std=(50, 50)),
         torchio.transforms.RandomBlur(p=0.1,
             std=(0, 1))
+    ]),
+    'antoine': torchio.transforms.Compose([
+        torchio.RandomAffine(p=0.1,
+            scales=(0.5, 1.5),
+            degrees=(5),
+            isotropic=False,
+            default_pad_value='otsu',
+            image_interpolation='bspline'),
+        torchio.transforms.RandomFlip(p=0.1, 
+            axes=(1, 0, 0)),
+        torchio.transforms.RandomMotion(p=0.1,
+            degrees=10, 
+            translation=10, 
+            num_transforms=2)
     ])
 }
 
@@ -88,7 +104,7 @@ def resize_2d(img, size=(1, 128, 128), label=False):
         # Interpolation in 'nearest' mode leaves the original mask values.
         img = F.interpolate(img, size=size[1:], mode='nearest')
     else:
-        img = F.interpolate(img, size=size[1:], mode='bilinear')
+        img = F.interpolate(img, size=size[1:], mode='bilinear', align_corners=True)
     return img[0]
 
 def resize_3d(img, size=(1, 56, 56, 56), label=False):
