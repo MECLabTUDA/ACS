@@ -28,7 +28,7 @@ class UNet(SegmentationModel):
             dropout: float = 0,
             monte_carlo_dropout: float = 0,
             ):
-        super().__init__(input_shape=input_shape, nr_labels=nr_labels)
+        super(UNet, self).__init__(input_shape=input_shape, nr_labels=nr_labels)
 
         in_channels = input_shape[0]
 
@@ -132,12 +132,14 @@ class UNet2D(UNet):
         predef_kwargs['num_encoding_blocks'] = 5
         predef_kwargs['out_channels_first_layer'] = 16 #64
         predef_kwargs['normalization'] = 'batch'
+        # added TODO
+        # predef_kwargs['preactivation'] = True
         preactivation = True
         # Added this so there is no error between the skip connection and 
         # feature mas shapes
         predef_kwargs['padding'] = True
         predef_kwargs.update(kwargs)
-        super().__init__(*args, **predef_kwargs)
+        super(UNet2D, self).__init__(*args, **predef_kwargs)
 
 class UNet3D(UNet):
     def __init__(self, *args, **kwargs):
