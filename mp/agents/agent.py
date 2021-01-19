@@ -91,7 +91,7 @@ class Agent:
                 printed.
         """
         acc = Accumulator('loss')
-        for _, data in enumerate(train_dataloader):
+        for data in train_dataloader:
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -115,8 +115,10 @@ class Agent:
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
+
         if init_epoch == 0:
             self.track_metrics(init_epoch, results, loss_f, eval_datasets)
+
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             self.current_epoch = epoch
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
