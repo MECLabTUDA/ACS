@@ -8,7 +8,7 @@ class UNet2D_dis(UNet2D):
     r"""Adaption of UNet2D to access encoder and decoder seperately.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(UNet2D_dis, self).__init__(*args, **kwargs)
 
     def forward_enc(self, x):
         skip_connections, encoding = self.encoder(x)
@@ -78,13 +78,34 @@ class Generator(nn.Module):
     def __init__(self, in_channels, out_channels, domain_code_size):
         super(Generator, self).__init__()
 
-        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0, domain_code_size=domain_code_size)]
-        for i in range(0,3):
-            layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0, domain_code_size=domain_code_size)]
+        # ORIGINAL
+        # layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0, domain_code_size=domain_code_size)]
+        # for i in range(0,3):
+        #     layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0, domain_code_size=domain_code_size)]
 
-        layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
-        layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
-        layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Tanh()]
+        # layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
+        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
+        # # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Tanh()]
+        # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Sigmoid()]
+
+        # ALTERNATIVE w/ more filters
+        layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=1, domain_code_size=domain_code_size)]
+        for i in range(0,4):
+            layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=1, domain_code_size=domain_code_size)]
+
+        layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=in_channels, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        layers += [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        layers += [nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+
+        # ALTERNATIVE w/ less filters
+        # layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+        # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
+
+        layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=7, stride=1, padding=3), nn.Sigmoid()]
+        
 
         self.layers_BCIN = MultiInSequential(*layers_BCIN)
         self.layers = nn.Sequential(*layers)
@@ -108,8 +129,8 @@ class DiscriminatorContent(nn.Module):
         self.layers = nn.Sequential(*layers)
         
         # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=6**2, out_features=1) # 21**2
-        self.activation = nn.Sigmoid()
+        self.linear = nn.Linear(in_features=6**2, out_features=3) # 21**2
+        self.activation = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.layers(x)
@@ -289,18 +310,27 @@ class BCIN(nn.Module):
     r"""Central Biasing Instance Normalization
     https://arxiv.org/abs/1806.10050
     """
-    def __init__(self, num_features, domain_code_size, affine=True):
+    # TODO: investigate BCIN and remove instance_norm=True
+    def __init__(self, num_features, domain_code_size, affine=True, instance_norm=False):
         super(BCIN, self).__init__()
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)
         self.b = nn.Parameter(torch.rand(1), requires_grad=affine)
         self.activation = nn.Tanh()
 
+        self.instance_norm = instance_norm
+        if self.instance_norm:
+            print('Using instance_norm instead of BCIN')
+        self.norm = torch.nn.InstanceNorm2d(num_features=num_features)
+    
     def forward(self, x, domain_code):
         x_var = torch.sqrt(torch.var(x, (1,2,3))) # instance std
         x_mean = torch.mean(x, (1,2,3)) # instance mean
         bias = torch.matmul(domain_code, self.W) * self.b
         bias_scaled = self.activation(bias)
 
+
+        if self.instance_norm:
+            return self.norm(x)
         return ((x-x_mean[:,None,None,None]) / x_var[:,None,None,None]) + bias_scaled[:,None,None,None]
 
 ### HELPER MODULES ###
