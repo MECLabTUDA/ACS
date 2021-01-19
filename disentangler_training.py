@@ -21,9 +21,12 @@ from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 
 import mp.visualization.visualize_imgs as vis
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset, PytorchSeg2DDatasetDomain
+from mp.models.segmentation.unet_milesial import UNet
 from mp.models.segmentation.unet_fepegar import UNet2D
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.disentangler_agent import DisentanglerAgent
+from mp.agents.whatever_agent import WhateverAgent
+from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
 from mp.utils.load_restore import nifty_dump
 from mp.utils.tensorboard import create_writer
@@ -36,7 +39,8 @@ from mp.models.disentangler.cmfd import CMFD
 config = parse_args_as_dict(sys.argv[1:])
 seed_all(42)
 
-config['class_weights'] = (0., 1.)
+config['class_weights'] = (0., 1.) # -> inverse of label ratios -> try: (0.3, 0.7)
+# config['class_weights'] = (0.8, 0.2)
 
 # Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
@@ -58,9 +62,10 @@ data.add_dataset(dataset_domain_c)
 
 nr_labels = data.nr_labels
 label_names = data.label_names
-train_ds_a = ('DecathlonHippocampus', 'train')
-train_ds_b = ('DryadHippocampus', 'train')
-test_ds_c = ('HarP', 'train')
+
+ds_a = ('DecathlonHippocampus', 'train')
+ds_b = ('DryadHippocampus', 'train')
+ds_c = ('HarP', 'train')
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -77,52 +82,55 @@ for run_ix in range(config['nr_runs']):
             data_ixs = data_ixs[:config['n_samples']]
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
+                # TODO
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
+                # datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
+                #     ix_lst=data_ixs, size=config['input_shape'], aug_key=aug, 
+                #     resize=(not config['no_resize']))
 
     # Combine datasets
-    # multi_domain_dataset = datasets[(train_ds_a)]
-    multi_domain_dataset = torch.utils.data.ConcatDataset((datasets[(train_ds_a)], datasets[(train_ds_b)]))
-    train_dataloader = DataLoader(multi_domain_dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True,)#, num_workers=len(config['device_ids'])*config['n_workers'])
-    
-    test_dataloader = DataLoader(datasets[(test_ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True,)#d, num_workers=len(config['device_ids'])*config['n_workers'])
+    if config['single_ds']:
+        dataset = datasets[(ds_a)]
+    else:
+        dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
+    train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+   
+    test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
-    # Initialize model
-    model = CMFD(config['input_shape'], domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250)
+    model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
+                    unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
+    
     model.to(config['device'])
 
     # Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=config['device'])
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], device=config['device'])
-    # TODO: fix CELoss
-    loss_c = torch.nn.CrossEntropyLoss()
 
     # Set optimizers
     model.set_optimizers(optim.Adam, lr=config['lr'])
-
-    # Train model
-    results = Result(name='training_trajectory')   
-    agent = DisentanglerAgent(model=model, label_names=label_names, device=config['device'])#, summary_writer=writer)
     
-    agent.train(results, loss_g, train_dataloader, test_dataloader,
+    # Train model
+    results = Result(name='training_trajectory')
+
+    agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])#, summary_writer=writer)
+
+    agent.train(results, loss_f, train_dataloader, test_dataloader, config,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
         display_interval=config['display_interval'],
         resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
 
-
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
-    # test_ds_key = '_'.join(test_ds_c)
-    # metric = 'Mean_LossDice[smooth=1.0]'
+    test_ds_key = '_'.join(test_ds_c)
+    metric = 'Mean_LossDice[smooth=1.0]'
     
-    # print(results.results.keys())
-    
-    # last_dice = results.get_epoch_metric(
-    #     results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    # print('Last Dice score for hippocampus class: {}'.format(last_dice))
+    last_dice = results.get_epoch_metric(
+        results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
+    print('Last Dice score for hippocampus class: {}'.format(last_dice))
 
     import mp.visualization.visualize_imgs as vis
     # Visualize result for the first subject in the test dataset
