@@ -13,6 +13,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
+from torch.utils.data.sampler import WeightedRandomSampler
+
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
@@ -93,9 +95,25 @@ for run_ix in range(config['nr_runs']):
     # Combine datasets
     if config['single_ds']:
         dataset = datasets[(ds_a)]
+        train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+
     else:
+        len_a = len(datasets[(ds_a)])
+        len_b = len(datasets[(ds_b)])
+        print('length dataset A:', len_a, 'B:', len_b, 'weights A:', 1-ratio, 'B:', ratio)
+
+        ratio = len_a / (len_a+len_b)
+        samples_weight_a = torch.full((len_a,), 1-ratio)
+        samples_weight_b = torch.full((len_b,), ratio)
+        print(samples_weight_a, samples_weight_b)
+
+        # use WeightedRandomSampler to counter class balance
+        # https://github.com/ptrblck/pytorch_misc/blob/master/weighted_sampling.py 
+        samples_weight_both = torch.cat((samples_weight_a, samples_weight_b))
+        sampler = WeightedRandomSampler(samples_weight_both, len(samples_weight_both))
+        
         dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
-    train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+        train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
    
     test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
@@ -114,7 +132,7 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')
 
-    agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])#, summary_writer=writer)
+    agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])
 
     agent.train(results, loss_f, train_dataloader, test_dataloader, config,
         init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
@@ -126,7 +144,7 @@ for run_ix in range(config['nr_runs']):
     print('Finished training on A and B, starting training on C')
 
     agent.train(results, loss_f, test_dataloader, train_dataloader, config,
-        init_epoch=config['epochs'], nr_epochs=2*config['epochs'], run_loss_print_interval=1,
+        init_epoch=config['epochs'], nr_epochs=config['epochs'], run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
         display_interval=config['display_interval'],
@@ -136,14 +154,14 @@ for run_ix in range(config['nr_runs']):
 
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
-    test_ds_key = '_'.join(ds_c)
-    metric = 'Mean_LossDice[smooth=1.0]'
+    # test_ds_key = '_'.join(ds_c)
+    # metric = 'Mean_LossDice[smooth=1.0]'
     
-    last_dice = results.get_epoch_metric(
-        results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    print('Last Dice score for hippocampus class: {}'.format(last_dice))
+    # last_dice = results.get_epoch_metric(
+    #     results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
+    # print('Last Dice score for hippocampus class: {}'.format(last_dice))
 
-    import mp.visualization.visualize_imgs as vis
+    # import mp.visualization.visualize_imgs as vis
     # Visualize result for the first subject in the test dataset
     # subject_ix = 0
     # subject = datasets[test_ds].instances[subject_ix].get_subject()
