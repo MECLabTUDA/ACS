@@ -36,14 +36,15 @@ class WhateverAgent(SegmentationAgent):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
-
+        print(init_epoch)
         self.agent_state_dict['epoch'] = init_epoch
 
         # Resume training at resume_epoch
         if resume_epoch is not None:
             self.restore_state(save_path, resume_epoch)
             init_epoch = self.agent_state_dict['epoch'] + 1
-            
+            nr_epochs -= init_epoch
+        
         # Create tensorboard summary writer 
         self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
 
@@ -55,9 +56,11 @@ class WhateverAgent(SegmentationAgent):
         # TODO for better eval
         # if init_epoch == 0:
         #     self.track_metrics(init_epoch, results, loss_f, eval_datasets)
+
+        print(init_epoch, init_epoch+nr_epochs)
         
         for epoch in range(init_epoch, init_epoch+nr_epochs):
-            
+            print(epoch)
             self.agent_state_dict['epoch'] = epoch
             
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
@@ -67,12 +70,12 @@ class WhateverAgent(SegmentationAgent):
         
             # Write losses to tensorboard
             if (epoch+1) % display_interval == 0:
-                self.track_loss(acc, epoch+1)
+                self.track_loss(acc, epoch+1, config)
 
             # Create visualizations and write them to tensorboard
             if (epoch+1) % display_interval == 0:
-                self.track_visualization(train_dataloader, save_path, epoch+1, 'train')
-                self.track_visualization(test_dataloader, save_path, epoch+1, 'test')
+                self.track_visualization(train_dataloader, save_path, epoch+1, config, 'train')
+                self.track_visualization(test_dataloader, save_path, epoch+1, config, 'test')
 
             # Save agent and optimizer state
             if (epoch+1) % save_interval == 0 and save_path is not None:
@@ -93,33 +96,39 @@ class WhateverAgent(SegmentationAgent):
         acc = Accumulator('loss')
         start_time = time.time()
 
-        # for data in train_dataloader:
-        #     # Get data
-        #     inputs, targets, _ = self.get_inputs_targets(data, eval=False)
+        if config['unet_only']:
+            for data in tqdm(train_dataloader):
+                # Get data
+                inputs, targets, _ = self.get_inputs_targets(data, eval=False)
 
-        #     # Forward pass
-        #     outputs = self.get_outputs(inputs)
+                # Forward pass
+                outputs = self.get_outputs(inputs)
 
-        #     # Optimization step
-        #     self.model.unet_optim.zero_grad()
-        #     loss = loss_f(outputs, targets)
-        #     loss.backward()
-        #     self.model.unet_optim.step()
-        #     acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
+                # Optimization step
+                self.model.unet_optim.zero_grad()
 
-        for data in train_dataloader:
-            half_batch = train_dataloader.batch_size // 2
-            x, y, domain_code = self.get_inputs_targets(data, eval=False)
+                loss = loss_f(outputs, targets)
+                loss.backward()
+                
+                self.model.unet_optim.step()
 
-            loss_vae_gen, acc = self.update_vae_gen(x, y, domain_code, half_batch, acc, config, loss_f)
+                acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
+                acc.add('loss_seg', float(loss.detach().cpu()), count=len(inputs))
 
-            # TODO: try update discriminator/segmentor twice
-            d_iter = 3
-            for d in range(d_iter):
-                loss_dis_seg, acc = self.update_dis_seg(x, y, domain_code, half_batch, acc, config, loss_f)
+        else:
+            for data in tqdm(train_dataloader):
+                half_batch = train_dataloader.batch_size // 2
+                x, y, domain_code = self.get_inputs_targets(data, eval=False)
 
-            loss_comb = loss_vae_gen + loss_dis_seg
-            acc.add('loss', float(loss_comb.detach().cpu()), count=len(x))
+                loss_vae_gen, acc = self.update_vae_gen(x, y, domain_code, half_batch, acc, config, loss_f)
+
+                # TODO: try update discriminator/segmentor twice
+                d_iter = 3
+                for d in range(d_iter):
+                    loss_dis_seg, acc = self.update_dis_seg(x, y, domain_code, half_batch, acc, config, loss_f)
+
+                loss_comb = loss_vae_gen + loss_dis_seg
+                acc.add('loss', float(loss_comb.detach().cpu()), count=len(x))
 
         if print_run_loss:
             print('\nrunning loss: {} - time/epoch {}'.format(acc.mean('loss'), round(time.time()-start_time, 4)))
@@ -162,27 +171,27 @@ class WhateverAgent(SegmentationAgent):
                     self.writer_add_scalar(f'metric/{metric_key}/{ds_name}', eval_dict[metric_key]['mean'], epoch)
                     print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
 
-    def track_loss(self, acc, epoch, phase='train'):
+    def track_loss(self, acc, epoch, config, phase='train'):
         r'''Tracks loss in tensorboard.
 
         Args:
             acc (Accumulator): accumulator containing the tracked losses
             phase (string): either "test" or "train"
         '''
-
-        self.writer_add_scalar(f'loss_{phase}/loss_vae', acc.mean('loss_vae'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_c_adv', acc.mean('loss_c_adv'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_c_recon', acc.mean('loss_c_recon'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_lcr', acc.mean('loss_lcr'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_gan_d', acc.mean('loss_gan_d'), epoch)
-        self.writer_add_scalar(f'loss_{phase}/loss_gan_g', acc.mean('loss_gan_g'), epoch)
+        if not config['unet_only']:
+            self.writer_add_scalar(f'loss_{phase}/loss_vae', acc.mean('loss_vae'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_c_adv', acc.mean('loss_c_adv'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_c_recon', acc.mean('loss_c_recon'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_lcr', acc.mean('loss_lcr'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_gan_d', acc.mean('loss_gan_d'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_gan_g', acc.mean('loss_gan_g'), epoch)
 
         self.writer_add_scalar(f'loss_{phase}/loss_seg', acc.mean('loss_seg'), epoch)
         self.writer_add_scalar(f'loss_{phase}/loss_comb', acc.mean('loss'), epoch)
     
-    def track_visualization(self, dataloader, save_path, epoch, phase='train'):
+    def track_visualization(self, dataloader, save_path, epoch, config, phase='train'):
         r'''Creates visualizations and tracks them in tensorboard.
 
         Args:
@@ -204,11 +213,6 @@ class WhateverAgent(SegmentationAgent):
         x_i_img = x_i[sample_idx].unsqueeze(0)
         x_i_domain = domain_code_i[sample_idx].unsqueeze(0)
 
-        # gan 
-        skip_connections_x, content_x, style_sample_x = self.model.forward_enc(x_i_img)
-        latent_scale_x = self.model.latent_scaler(style_sample_x)
-        x_hat = self.model.forward_gen(content_x, latent_scale_x, x_i_domain)
-
         # segmentation
         x_i_seg = x_i_seg[sample_idx][1].unsqueeze(0).unsqueeze(0)
         threshold = 0.5
@@ -221,11 +225,9 @@ class WhateverAgent(SegmentationAgent):
 
         save_path_pred = os.path.join(save_path, f'e_{epoch:06d}_{phase}_pred.png')
         save_path_label = os.path.join(save_path, f'e_{epoch:06d}_{phase}_label.png')
-        save_path_gan = os.path.join(save_path, f'e_{epoch:06d}_{phase}_gan.png')
         
         plot_3d_segmentation(x_i_img, x_i_seg_mask, save_path=save_path_pred, img_size=(256, 256), alpha=0.5)
         plot_3d_segmentation(x_i_img, y_i_seg_mask, save_path=save_path_label, img_size=(256, 256), alpha=0.5)
-        plot_3d_segmentation(x_hat, torch.zeros(x_hat.shape), save_path=save_path_gan, img_size=(256, 256), alpha=0.5)
         
         image = Image.open(save_path_pred)
         image = TF.to_tensor(image)
@@ -235,9 +237,19 @@ class WhateverAgent(SegmentationAgent):
         image = TF.to_tensor(image)
         self.writer_add_image(f'imgs_{phase}/label', image, epoch)
 
-        image = Image.open(save_path_gan)
-        image = TF.to_tensor(image)
-        self.writer_add_image(f'imgs_{phase}/gan', image, epoch)
+        if not config['unet_only']:
+            # gan
+            skip_connections_x, content_x, style_sample_x = self.model.forward_enc(x_i_img)
+            latent_scale_x = self.model.latent_scaler(style_sample_x)
+            x_hat = self.model.forward_gen(content_x, latent_scale_x, x_i_domain)
+
+            save_path_gan = os.path.join(save_path, f'e_{epoch:06d}_{phase}_gan.png')
+
+            plot_3d_segmentation(x_hat, torch.zeros(x_hat.shape), save_path=save_path_gan, img_size=(256, 256), alpha=0.5)
+
+            image = Image.open(save_path_gan)
+            image = TF.to_tensor(image)
+            self.writer_add_image(f'imgs_{phase}/gan', image, epoch)
 
     def save_state(self, states_path, epoch, optimizer=None, overwrite=False):
         r"""Saves an agent state. Raises an error if the directory exists and 
