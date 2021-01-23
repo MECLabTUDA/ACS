@@ -100,12 +100,11 @@ for run_ix in range(config['nr_runs']):
     else:
         len_a = len(datasets[(ds_a)])
         len_b = len(datasets[(ds_b)])
+        ratio = len_a / (len_a+len_b)
         print('length dataset A:', len_a, 'B:', len_b, 'weights A:', 1-ratio, 'B:', ratio)
 
-        ratio = len_a / (len_a+len_b)
         samples_weight_a = torch.full((len_a,), 1-ratio)
         samples_weight_b = torch.full((len_b,), ratio)
-        print(samples_weight_a, samples_weight_b)
 
         # use WeightedRandomSampler to counter class balance
         # https://github.com/ptrblck/pytorch_misc/blob/master/weighted_sampling.py 
@@ -148,7 +147,7 @@ for run_ix in range(config['nr_runs']):
         eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
         display_interval=config['display_interval'],
-        resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
+        resume_epoch=config['resume_epoch'], device_ids=[0]) #device_ids=config['device_ids'])
 
     print('Finished training on C')
 
