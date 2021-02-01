@@ -25,33 +25,25 @@ def _get_parser():
     parser.add_argument('--n-samples', type=int, default=None, help='# of samples per dataloader, only use when debugging')
 
     # training
-    parser.add_argument('--epochs', type=int, default=100, help='# of epochs')
+    parser.add_argument('--epochs', type=int, default=25, help='# of epochs')
     parser.add_argument('--lr', type=float, default=2e-4, help='learning rate')
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--domain-code-size', type=int, default=3, help='# of domains')
     parser.add_argument('--cross-validation', action='store_true', help='specify if cross validation should be used')
+    parser.add_argument('--d-iter', type=int, default=3, help='discriminator update iterations per epoch')
 
     parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval -> all datasets')
-    parser.add_argument('--save-interval', type=int, default=10, help='save interval')
+    parser.add_argument('--save-interval', type=int, default=1, help='save interval')
     parser.add_argument('--display-interval', type=int, default=1, help='display/tensorboard interval')
 
     parser.add_argument('--resume-epoch', type=int, default=None, help='resume training at epoch, -1 for latest, select run using experiment-name argument')
     
     parser.add_argument('--lambda-vae', type=float, default=5, help='lambda tuning vae loss')
-    parser.add_argument('--lambda-c-adv', type=float, default=1e-1, help='lambda tuning content adversarial loss')
-    parser.add_argument('--lambda-lcr', type=float, default=1e-4, help='lambda tuning lcr loss')
-    # TODO: set seg to 1 because it's main objective ?
+    parser.add_argument('--lambda-c-adv', type=float, default=1e-1, help='lambda tuning content adversarial loss') # 1e-1
+    parser.add_argument('--lambda-lcr', type=float, default=1e-4, help='lambda tuning lcr loss') # 1e-4
     parser.add_argument('--lambda-seg', type=float, default=5, help='lambda tuning segmentation loss') # maybe even 10
-    parser.add_argument('--lambda-c-recon', type=float, default=1e-5, help='lambda tuning content reconstruction loss')
-    parser.add_argument('--lambda-gan', type=float, default=5, help='lambda tuning content reconstruction loss')
-    
-    # parser.add_argument('--lambda-vae', type=float, default=0, help='lambda tuning vae loss')
-    # parser.add_argument('--lambda-c-adv', type=float, default=0, help='lambda tuning content adversarial loss')
-    # parser.add_argument('--lambda-lcr', type=float, default=0, help='lambda tuning lcr loss')
-    # # TODO: set seg to 1 because it's main objective ?
-    # parser.add_argument('--lambda-seg', type=float, default=5, help='lambda tuning segmentation loss')
-    # parser.add_argument('--lambda-c-recon', type=float, default=0, help='lambda tuning content reconstruction loss')
-    # parser.add_argument('--lambda-gan', type=float, default=0, help='lambda tuning content reconstruction loss')
+    parser.add_argument('--lambda-c-recon', type=float, default=0, help='lambda tuning content reconstruction loss') # 1e-1
+    parser.add_argument('--lambda-gan', type=float, default=5, help='lambda tuning gan loss')
 
     parser.add_argument('--unet-only', action='store_true', help='only train UNet')
     parser.add_argument('--unet-dropout', type=float, default=0, help='apply dropout to UNet')
@@ -73,7 +65,9 @@ def parse_args(argv):
     device_name = str(torch.cuda.get_device_name(args.device) if args.device == "cuda" else args.device)
     print('Device name: {}'.format(device_name))
     args.input_shape = (args.input_dim_c, args.input_dim_hw, args.input_dim_hw)
-    assert args.batch_size % 2 == 0, 'batch_size must be multiple of 2'
+
+    # dummy class
+    args.domain_code_size = args.domain_code_size + 1
 
     return args
 

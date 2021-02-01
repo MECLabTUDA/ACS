@@ -40,9 +40,11 @@ class CMFD(Model):
         self.enc_sty = EncoderStyle(in_channels=self.input_shape[0])
 
         # discriminator
-        self.dis_con = DiscriminatorContent(in_channels=self.enc_con_out_dim, max_channels=256, kernel_size=3, stride=1)
+        self.dis_con = DiscriminatorContent(in_channels=self.enc_con_out_dim, max_channels=256, kernel_size=3, stride=1, domain_code_size=self.domain_code_size)
         # self.dis_struc = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
         self.dis_dom = DiscriminatorStructureMulti(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
+        
+        self.dis_con = DiscriminatorUnet(in_channels=self.input_shape[0], domain_code_size=self.domain_code_size, max_channels=256, kernel_size=3, stride=2)
         
         # generator
         self.gen = Generator(in_channels=self.enc_con_out_dim, out_channels=self.input_shape[0], domain_code_size=self.domain_code_size)
@@ -70,15 +72,11 @@ class CMFD(Model):
         self.dis_dom_optim = optimizer(self.dis_dom.parameters(),lr=lr)
         self.gen_optim = optimizer(self.gen.parameters(),lr=lr)
 
-        self.unet_encoder_optim = optimizer(self.unet.encoder.parameters(),lr=lr)
-        self.unet_bottom_block_optim = optimizer(self.unet.bottom_block.parameters(),lr=lr)
-
+        self.unet_optim = optimizer(self.unet.parameters(),lr=lr)
+        # self.unet_encoder_optim = optimizer(self.unet.encoder.parameters(),lr=lr)
+        # self.unet_bottom_block_optim = optimizer(self.unet.bottom_block.parameters(),lr=lr)
         self.unet_decoder_optim = optimizer(self.unet.decoder.parameters(),lr=lr)
-        # if self.unet.monte_carlo_layer is not None:
-        #     self.unet_monte_carlo_layer_optim = optimizer(self.unet.monte_carlo_layer.parameters(),lr=lr)
         self.unet_classifier_optim = optimizer(self.unet.classifier.parameters(),lr=lr)
-
-        # self.unet_optim = optimizer(self.unet.parameters(),lr=lr)
 
     def zero_grad_optimizers(self):
         self.enc_sty_optim.zero_grad()
@@ -98,27 +96,21 @@ class CMFD(Model):
         self.enc_sty_optim.zero_grad()
         self.gen_optim.zero_grad()
         
-        # self.unet_optim.zero_grad()
-        self.unet_encoder_optim.zero_grad()
-        self.unet_bottom_block_optim.zero_grad()
-
-        self.unet_decoder_optim.zero_grad()
-        # if self.unet.monte_carlo_layer is not None:
-        #     self.unet_monte_carlo_layer_optim.zero_grad()
-        self.unet_classifier_optim.zero_grad()
+        self.unet_optim.zero_grad()
+        # self.unet_encoder_optim.zero_grad()
+        # self.unet_bottom_block_optim.zero_grad()
+        # self.unet_decoder_optim.zero_grad()
+        # self.unet_classifier_optim.zero_grad()
 
     def step_optim_vae_gen(self):
         self.enc_sty_optim.step()
         self.gen_optim.step()
 
-        # self.unet_optim.step()
-        self.unet_encoder_optim.step()
-        self.unet_bottom_block_optim.step()
-
-        self.unet_decoder_optim.step()
-        # if self.unet.monte_carlo_layer is not None:
-        #     self.unet_monte_carlo_layer_optim.step()
-        self.unet_classifier_optim.step()
+        self.unet_optim.step()
+        # self.unet_encoder_optim.step()
+        # self.unet_bottom_block_optim.step()
+        # self.unet_decoder_optim.step()
+        # self.unet_classifier_optim.step()
         
     
     def zero_grad_optim_dis_seg(self):
@@ -172,8 +164,8 @@ class CMFD(Model):
         x = self.dis_dom(x, domain_code)
         return x
 
-    def forward_con_dis(self, x):
-        x = self.dis_con(x)
+    def forward_con_dis(self, skip_connections_x, x):
+        x = self.dis_con(skip_connections_x, x)
         return x
     
     def sample_z(self, shape):

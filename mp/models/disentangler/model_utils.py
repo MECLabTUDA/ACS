@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mp.models.segmentation.unet_fepegar import UNet2D
+from mp.models.segmentation.model_utils import ConvolutionalBlock
 
 ### MODULES ###
 class UNet2D_dis(UNet2D):
@@ -118,7 +119,7 @@ class Generator(nn.Module):
 class DiscriminatorContent(nn.Module):
     r"""Content Discriminator.
     """
-    def __init__(self, in_channels, max_channels=512, kernel_size=4, stride=2):
+    def __init__(self, in_channels, max_channels=512, kernel_size=4, stride=2, domain_code_size=3):
         super(DiscriminatorContent, self).__init__()
 
         layers = [ConvBlock(in_channels=in_channels, out_channels=64, kernel_size=kernel_size, stride=stride, normalization='None')]
@@ -129,14 +130,14 @@ class DiscriminatorContent(nn.Module):
         self.layers = nn.Sequential(*layers)
         
         # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=6**2, out_features=3) # 21**2
+        self.linear = nn.Linear(in_features=6**2, out_features=domain_code_size) # 21**2
         self.activation = nn.Softmax(dim=1)
 
     def forward(self, x):
         x = self.layers(x)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
-        x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
+        # x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
 
 class DiscriminatorStructureMulti(nn.Module):
@@ -160,8 +161,73 @@ class DiscriminatorStructureMulti(nn.Module):
         x, domain_code = self.layers(x, domain_code)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
-        x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
+        # x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
+
+class DiscriminatorUnet(nn.Module):
+    r"""Unet-style Domain Discriminator.
+    """
+    def __init__(self, in_channels, domain_code_size, max_channels=512, kernel_size=3, stride=2):
+        super(DiscriminatorUnet, self).__init__()
+
+        self.in_channels = 16
+        self.in_channels_max = 128
+        self.out_channels = 32
+        self.out_channels_max = 256
+        padding = 1
+
+        self.conv_0 = nn.Conv2d(in_channels=self.in_channels, out_channels=self.in_channels*2**1, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.norm_0 = nn.BatchNorm2d(self.in_channels*2**1)
+        self.activation_0 = nn.ReLU()
+        self.conv_1 = nn.Conv2d(in_channels=self.in_channels*2**1, out_channels=self.in_channels*2**2, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.norm_1 = nn.BatchNorm2d(self.in_channels*2**2)
+        self.activation_1 = nn.ReLU()
+        self.conv_2 = nn.Conv2d(in_channels=self.in_channels*2**2, out_channels=self.in_channels*2**3, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.norm_2 = nn.BatchNorm2d(self.in_channels*2**3)
+        self.activation_2 = nn.ReLU()
+        self.conv_3 = nn.Conv2d(in_channels=self.in_channels*2**3, out_channels=self.in_channels*2**4, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.norm_3 = nn.BatchNorm2d(self.in_channels*2**4)
+        self.activation_3 = nn.ReLU()
+        self.conv_4 = nn.Conv2d(in_channels=self.in_channels*2**4, out_channels=1, kernel_size=kernel_size, stride=stride, padding=padding)
+        self.norm_4 = nn.BatchNorm2d(1)
+        self.activation_4 = nn.ReLU()
+        
+        self.dense = nn.Linear(in_features = 8**2, out_features=domain_code_size)
+        self.softmax = nn.Softmax(dim=1)
+
+         # BCIN(out_channels, domain_code_size) # not learnable
+        # self.activation = nn.ReLU()
+
+    def forward(self, skip_connections, content_x):
+        out = self.conv_0(skip_connections[0])
+        out = self.norm_0(out)
+        out = self.activation_0(out)
+        out = self.conv_1(skip_connections[1] + out)
+        out = self.norm_1(out)
+        out = self.activation_1(out)
+        out = self.conv_2(skip_connections[2] + out)
+        out = self.norm_2(out)
+        out = self.activation_2(out)
+        out = self.conv_3(skip_connections[3] + out)
+        out = self.norm_3(out)
+        out = self.activation_3(out)
+        out = self.conv_4(content_x + out)
+        out = self.norm_4(out)
+        out = self.activation_4(out)
+        out = self.dense(out.reshape(content_x.shape[0], -1))
+        out = self.softmax(out)
+        return out
+    
+    def center_crop(self, skip_connection, x):
+        skip_shape = torch.tensor(skip_connection.shape)
+        x_shape = torch.tensor(x.shape)
+        crop = skip_shape[2:] - x_shape[2:]
+        half_crop = crop // 2
+        # If skip_connection is 10, 20, 30 and x is (6, 14, 12)
+        # Then pad will be (-2, -2, -3, -3, -9, -9)
+        pad = -torch.stack((half_crop, half_crop)).t().flatten()
+        skip_connection = F.pad(skip_connection, pad.tolist())
+        return skip_connection
 
 ### BUILDING BLOCKS ###
 class ConvBlock(nn.Module):
@@ -311,7 +377,7 @@ class BCIN(nn.Module):
     https://arxiv.org/abs/1806.10050
     """
     # TODO: investigate BCIN and remove instance_norm=True
-    def __init__(self, num_features, domain_code_size, affine=True, instance_norm=False):
+    def __init__(self, num_features, domain_code_size, affine=True, instance_norm=False, batch_norm=False):
         super(BCIN, self).__init__()
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)
         self.b = nn.Parameter(torch.rand(1), requires_grad=affine)
@@ -320,8 +386,13 @@ class BCIN(nn.Module):
         self.instance_norm = instance_norm
         if self.instance_norm:
             print('Using instance_norm instead of BCIN')
-        self.norm = torch.nn.InstanceNorm2d(num_features=num_features)
-    
+        self.i_norm = torch.nn.InstanceNorm2d(num_features=num_features)
+
+        self.batch_norm = batch_norm
+        if self.instance_norm:
+            print('Using batch_norm instead of BCIN')
+        self.b_norm = torch.nn.BatchNorm2d(num_features=num_features)
+
     def forward(self, x, domain_code):
         x_var = torch.sqrt(torch.var(x, (1,2,3))) # instance std
         x_mean = torch.mean(x, (1,2,3)) # instance mean
@@ -330,7 +401,10 @@ class BCIN(nn.Module):
 
 
         if self.instance_norm:
-            return self.norm(x)
+            return self.i_norm(x)
+        if self.batch_norm:
+            return self.b_norm(x)
+
         return ((x-x_mean[:,None,None,None]) / x_var[:,None,None,None]) + bias_scaled[:,None,None,None]
 
 ### HELPER MODULES ###

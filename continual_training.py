@@ -88,6 +88,7 @@ for run_ix in range(config['nr_runs']):
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
+
                 # datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
                 #     ix_lst=data_ixs, size=config['input_shape'], aug_key=aug, 
                 #     resize=(not config['no_resize']))
@@ -133,23 +134,46 @@ for run_ix in range(config['nr_runs']):
 
     agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])
 
-    agent.train(results, loss_f, train_dataloader, test_dataloader, config,
-        init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=config['eval_interval'],
-        save_path=exp_run.paths['states'], save_interval=config['save_interval'],
-        display_interval=config['display_interval'],
-        resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
+    init_epoch = 0
+    nr_epochs = config['epochs'] // 2
 
-    print('Finished training on A and B, starting training on C')
+    # Resume training
+    if config['resume_epoch'] is not None:
+        agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
+        init_epoch = agent.agent_state_dict['epoch'] + 1
 
-    agent.train(results, loss_f, test_dataloader, train_dataloader, config,
-        init_epoch=config['epochs'], nr_epochs=config['epochs'], run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=config['eval_interval'],
-        save_path=exp_run.paths['states'], save_interval=config['save_interval'],
-        display_interval=config['display_interval'],
-        resume_epoch=config['resume_epoch'], device_ids=[0]) #device_ids=config['device_ids'])
+    # Train on A and B
+    if init_epoch < config['epochs'] / 2:
+        config['continual'] = False
+        agent.train(results, loss_f, train_dataloader, test_dataloader, config,
+            init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
+            eval_datasets=datasets, eval_interval=config['eval_interval'],
+            save_path=exp_run.paths['states'], save_interval=config['save_interval'],
+            display_interval=config['display_interval'],
+            resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
 
-    print('Finished training on C')
+        print('Finished training on A and B, starting training on C')
+
+    init_epoch = config['epochs'] // 2
+    nr_epochs = config['epochs']
+
+    # Resume training
+    if config['resume_epoch'] is not None:
+        agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
+        init_epoch = agent.agent_state_dict['epoch'] + 1
+    
+    # Train on C
+    if init_epoch >= config['epochs'] / 2:
+        config['continual'] = True
+        print('Freezing everything but segmentor')
+        agent.train(results, loss_f, test_dataloader, train_dataloader, config,
+            init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
+            eval_datasets=datasets, eval_interval=config['eval_interval'],
+            save_path=exp_run.paths['states'], save_interval=config['save_interval'],
+            display_interval=config['display_interval'],
+            resume_epoch=config['resume_epoch'], device_ids=[0]) # device_ids=config['device_ids'])
+
+        print('Finished training on C')
 
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])

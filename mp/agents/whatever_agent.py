@@ -36,14 +36,14 @@ class WhateverAgent(SegmentationAgent):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
-        print(init_epoch)
+
         self.agent_state_dict['epoch'] = init_epoch
 
         # Resume training at resume_epoch
-        if resume_epoch is not None:
-            self.restore_state(save_path, resume_epoch)
-            init_epoch = self.agent_state_dict['epoch'] + 1
-            nr_epochs -= init_epoch
+        # if resume_epoch is not None:
+        #     self.restore_state(save_path, resume_epoch)
+        #     init_epoch = self.agent_state_dict['epoch'] + 1
+        #     nr_epochs -= init_epoch
         
         # Create tensorboard summary writer 
         self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
@@ -56,11 +56,8 @@ class WhateverAgent(SegmentationAgent):
         # TODO for better eval
         # if init_epoch == 0:
         #     self.track_metrics(init_epoch, results, loss_f, eval_datasets)
-
-        print(init_epoch, init_epoch+nr_epochs)
         
-        for epoch in range(init_epoch, init_epoch+nr_epochs):
-            print(epoch)
+        for epoch in range(init_epoch, nr_epochs):
             self.agent_state_dict['epoch'] = epoch
             
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
@@ -115,17 +112,37 @@ class WhateverAgent(SegmentationAgent):
                 acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
                 acc.add('loss_seg', float(loss.detach().cpu()), count=len(inputs))
 
+        elif config['continual']:
+            for data in tqdm(train_dataloader):
+            # Get data
+                inputs, targets, _ = self.get_inputs_targets(data, eval=False)
+
+                # Forward pass
+                outputs = self.get_outputs(inputs)
+
+                # Optimization step
+                self.model.unet_decoder_optim.zero_grad()
+                self.model.unet_classifier_optim.zero_grad()
+
+                loss = loss_f(outputs, targets)
+                loss.backward()
+                
+                self.model.unet_decoder_optim.step()
+                self.model.unet_classifier_optim.step()
+
+                acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
+                acc.add('loss_seg', float(loss.detach().cpu()), count=len(inputs))
+
         else:
             for data in tqdm(train_dataloader):
-                half_batch = train_dataloader.batch_size // 2
-                x, y, domain_code = self.get_inputs_targets(data, eval=False)
 
-                loss_vae_gen, acc = self.update_vae_gen(x, y, domain_code, half_batch, acc, config, loss_f)
+                x, y, domain_code = self.get_inputs_targets(data, eval=False)
+                
+                loss_vae_gen, acc = self.update_vae_gen(x, y, domain_code, acc, config, loss_f)
 
                 # TODO: try update discriminator/segmentor twice
-                d_iter = 3
-                for d in range(d_iter):
-                    loss_dis_seg, acc = self.update_dis_seg(x, y, domain_code, half_batch, acc, config, loss_f)
+                for _ in range(config['d_iter']):
+                    loss_dis_seg, acc = self.update_dis_seg(x, y, domain_code, acc, config, loss_f)
 
                 loss_comb = loss_vae_gen + loss_dis_seg
                 acc.add('loss', float(loss_comb.detach().cpu()), count=len(x))
@@ -178,11 +195,13 @@ class WhateverAgent(SegmentationAgent):
             acc (Accumulator): accumulator containing the tracked losses
             phase (string): either "test" or "train"
         '''
-        if not config['unet_only']:
+        if not config['unet_only'] and not config['continual']:
             self.writer_add_scalar(f'loss_{phase}/loss_vae', acc.mean('loss_vae'), epoch)
             self.writer_add_scalar(f'loss_{phase}/loss_vae_Reconstruction_Loss', acc.mean('loss_vae_Reconstruction_Loss'), epoch)
             self.writer_add_scalar(f'loss_{phase}/loss_vae_KLD', acc.mean('loss_vae_KLD'), epoch)
-            self.writer_add_scalar(f'loss_{phase}/loss_c_adv', acc.mean('loss_c_adv'), epoch)
+            # self.writer_add_scalar(f'loss_{phase}/loss_c_adv', acc.mean('loss_c_adv'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_c_adv_d', acc.mean('loss_c_adv_d'), epoch)
+            self.writer_add_scalar(f'loss_{phase}/loss_c_adv_e', acc.mean('loss_c_adv_e'), epoch)
             self.writer_add_scalar(f'loss_{phase}/loss_c_recon', acc.mean('loss_c_recon'), epoch)
             self.writer_add_scalar(f'loss_{phase}/loss_lcr', acc.mean('loss_lcr'), epoch)
             self.writer_add_scalar(f'loss_{phase}/loss_gan_d', acc.mean('loss_gan_d'), epoch)
@@ -305,15 +324,13 @@ class WhateverAgent(SegmentationAgent):
             print('State {} could not be restored'.format(state_name))
             return False
 
-    def update_vae_gen(self, x, y, domain_code, half_batch, acc, config, loss_f):
-        
-        x_i, y_i, domain_code_i = x[:half_batch], y[:half_batch], domain_code[:half_batch]
-        x_j, y_j, domain_code_j = x[half_batch:], y[half_batch:], domain_code[half_batch:]
-
+    def update_vae_gen(self, x, y, domain_code, acc, config, loss_f):
+     
         self.model.zero_grad_optim_vae_gen()
         
         # vae loss
         skip_connections_x, content_x, style_sample_x = self.model.forward_enc(x)
+
         latent_scale_x = self.model.latent_scaler(style_sample_x)
         x_hat = self.model.forward_gen(content_x, latent_scale_x, domain_code)
         mu, log_var = self.model.forward_style_enc(x) 
@@ -325,20 +342,24 @@ class WhateverAgent(SegmentationAgent):
         acc.add('loss_vae_KLD', float(loss_dict['KLD'].detach().cpu()), count=len(x))
 
         # content reconstruction loss
-        skip_connections_x_i, content_x_i, style_sample_x_i = self.model.forward_enc(x_i)
-        skip_connections_x_j, content_x_j, style_sample_x_j = self.model.forward_enc(x_j)
+        # skip_connections_x_i, content_x_i, style_sample_x_i = self.model.forward_enc(x_i)
+        # skip_connections_x_j, content_x_j, style_sample_x_j = self.model.forward_enc(x_j)
 
-        latent_scale_x_j = self.model.latent_scaler(style_sample_x_j)
-        x_j_hat = self.model.forward_gen(content_x_i, latent_scale_x_j, domain_code_j)
-        skip_connections_x_j_hat, content_x_j_hat, style_sample_x_j_hat = self.model.forward_enc(x_j_hat)
+        # latent_scale_x_j = self.model.latent_scaler(style_sample_x_j)
+        # x_j_hat = self.model.forward_gen(content_x_i, latent_scale_x_j, domain_code_j)
+        # skip_connections_x_j_hat, content_x_j_hat, style_sample_x_j_hat = self.model.forward_enc(x_j_hat)
 
-        latent_scale_x_i = self.model.latent_scaler(style_sample_x_i)
-        x_i_hat = self.model.forward_gen(content_x_j, latent_scale_x_i, domain_code_i)
-        skip_connections_x_i_hat, content_x_i_hat, style_sample_x_i_hat = self.model.forward_enc(x_i_hat)
+        # latent_scale_x_i = self.model.latent_scaler(style_sample_x_i)
+        # x_i_hat = self.model.forward_gen(content_x_j, latent_scale_x_i, domain_code_i)
+        # skip_connections_x_i_hat, content_x_i_hat, style_sample_x_i_hat = self.model.forward_enc(x_i_hat)
 
-        loss_c_recon_i = torch.mean(torch.linalg.norm((content_x_i-content_x_j_hat).view(-1,1), ord=1))
-        loss_c_recon_j = torch.mean(torch.linalg.norm((content_x_j-content_x_i_hat).view(-1,1), ord=1))
-        loss_c_recon = (loss_c_recon_i + loss_c_recon_j)/2
+        # loss_c_recon_i = torch.mean(torch.linalg.norm((content_x_i-content_x_j_hat).view(-1,1), ord=1))
+        # loss_c_recon_j = torch.mean(torch.linalg.norm((content_x_j-content_x_i_hat).view(-1,1), ord=1))
+
+        skip_connections_x_hat, content_x_hat, style_sample_x_hat = self.model.forward_enc(x_hat)
+        loss_c_recon = torch.mean(torch.linalg.norm((content_x-content_x_hat).view(-1,1), ord=1))
+
+        # loss_c_recon = (loss_c_recon_i + loss_c_recon_j)/2
         acc.add('loss_c_recon', float(loss_c_recon.detach().cpu()), count=len(x))
 
         # gan
@@ -357,15 +378,17 @@ class WhateverAgent(SegmentationAgent):
         fake_loss = nn.functional.binary_cross_entropy_with_logits(domain_z_hat, all_ones)
         loss_gan_g = fake_loss
         # print('loss_gan_g', loss_gan_g)
+        # print('dom_dis loss_gan_g domain_z_hat', domain_z_hat.shape, 'domain_code', all_ones.shape)
 
         # loss_gan_g = torch.mean(torch.log(1-domain_z_hat))
         acc.add('loss_gan_g', float(loss_gan_g.detach().cpu()), count=len(x))
 
         # lcr loss
         skip_connections_z_hat, z_hat_content, z_hat_sample = self.model.forward_enc(z_hat)
-        z = self.model.sample_z(z_hat_sample.shape) # as big as generator output
-        if z_hat_sample.is_cuda:
-            z = z.to(z_hat_sample.get_device())
+        # TODO: we have to take z from above, cause lcr loss is kind of a style reconstruction loss
+        # z = self.model.sample_z(z_hat_sample.shape) # as big as generator output
+        # if z_hat_sample.is_cuda:
+        #     z = z.to(z_hat_sample.get_device())
             
         loss_lcr = torch.mean(torch.linalg.norm((z-z_hat_sample).view(-1,1), ord=1))
         acc.add('loss_lcr', float(loss_lcr.detach().cpu()), count=len(x))
@@ -388,28 +411,61 @@ class WhateverAgent(SegmentationAgent):
         loss_seg = loss_f(x_seg, y)
         acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x))
 
-        loss_g_vae = config['lambda_vae']*loss_vae + config['lambda_c_recon']*loss_c_recon + config['lambda_gan']*loss_gan_g + config['lambda_lcr']*loss_lcr + config['lambda_seg']*loss_seg # + loss_c_adv
+        # TODO try
+        # domain_x = self.model.forward_con_dis(content_x)
+        domain_x = self.model.forward_con_dis(skip_connections_x, content_x)
+        # make discriminator believe all domains are equally likely i.e. domain can't be reconstructed
+        # TODO TODO
+        # domain_code_fake = torch.zeros_like(domain_code) # * (1 / domain_code.shape[-1])
+        # print('lcon_dis c_adv_e domain_x', domain_x.shape, 'domain_code_fake', domain_code_fake.shape)
+        # _, domain_index = torch.max(domain_code, dim=1)
+        # loss_c_adv_e = - torch.nn.functional.cross_entropy(domain_x, domain_index)
+        domain_dummy = torch.zeros_like(domain_x)
+        domain_dummy[-1] = 1
+        loss_c_adv_e = self.multi_class_cross_entropy_with_softmax(domain_x, domain_dummy)
+
+        # loss_c_adv_e = -1 * nn.functional.binary_cross_entropy_with_logits(domain_x, domain_code)
+        # loss_c_adv = torch.mean(torch.log(domain_x_i) + torch.mean(1 - torch.log(domain_x_j)))
+        acc.add('loss_c_adv_e', float(loss_c_adv_e.detach().cpu()), count=len(x))
+
+        loss_g_vae = config['lambda_c_adv']*loss_c_adv_e*3 + config['lambda_vae']*loss_vae + config['lambda_c_recon']*loss_c_recon + config['lambda_gan']*loss_gan_g + config['lambda_lcr']*loss_lcr + config['lambda_seg']*loss_seg # + loss_c_adv
         loss_g_vae.backward()
         
         self.model.step_optim_vae_gen()
 
         return loss_g_vae, acc
 
-    def update_dis_seg(self, x, y, domain_code, half_batch, acc, config, loss_f):
+    def update_dis_seg(self, x, y, domain_code, acc, config, loss_f):
         
-        x_i, y_i, domain_code_i = x[:half_batch], y[:half_batch], domain_code[:half_batch]
-        x_j, y_j, domain_code_j = x[half_batch:], y[half_batch:], domain_code[half_batch:]
-
         self.model.zero_grad_optim_dis_seg()
 
         # content adversarial loss
         skip_connections_x, content_x, style_sample_x = self.model.forward_enc(x)
-        domain_x = self.model.forward_con_dis(content_x)
-        
-        bce_loss = nn.BCEWithLogitsLoss()
-        loss_c_adv = bce_loss(domain_x, domain_code)
+        # domain_x = self.model.forward_con_dis(content_x)
+        domain_x = self.model.forward_con_dis(skip_connections_x, content_x)
+        # print('con_dis c_adv_d domain_x', domain_x.shape, 'domain_code', domain_code.shape)
+        _, domain_index = torch.max(domain_code, dim=1)
+
+        # content_z = self.model.sample_z(content_x.shape)
+        # skip_connections_z = self.model.sample_z(skip_connections_x.shape)
+        # if content_x.is_cuda:
+        #     content_z = content_z.to(content_x.get_device())
+        #     skip_connections_z = skip_connections_z.to(content_x.get_device())
+        # # domain_z = self.model.forward_con_dis(content_z)
+        # domain_z = self.model.forward_con_dis(skip_connections_z, content_z)
+        # domain_dummy = torch.zeros_like(domain_x)
+        # domain_dummy[-1] = 1
+        # loss_c_adv_d_dummy = self.multi_class_cross_entropy_with_softmax(domain_z, domain_dummy)
+
+        loss_c_adv_d_real = self.multi_class_cross_entropy_with_softmax(domain_x, domain_code)
+
+        loss_c_adv_d = loss_c_adv_d_real # + 1/2 * loss_c_adv_d_dummy
+        # loss_c_adv_d_ = torch.nn.functional.cross_entropy(domain_x, domain_index)
+
+        # print(loss_c_adv_d, loss_c_adv_d_)
+
         # loss_c_adv = torch.mean(torch.log(domain_x_i) + torch.mean(1 - torch.log(domain_x_j)))
-        acc.add('loss_c_adv', float(loss_c_adv.detach().cpu()), count=len(x))
+        acc.add('loss_c_adv_d', float(loss_c_adv_d.detach().cpu()), count=len(x))
         
         # gan
         z = self.model.sample_z(style_sample_x.shape)
@@ -427,6 +483,10 @@ class WhateverAgent(SegmentationAgent):
             all_ones = all_ones.to(domain_x.get_device())
         if domain_z_hat.is_cuda:
             all_zeros = all_zeros.to(domain_z_hat.get_device())
+
+        # print('dom_dis loss_gan_d domain_x', domain_x.shape, 'all_ones', all_ones.shape)
+        # print('dom_dis loss_gan_d domain_z_hat', domain_z_hat.shape, 'domain_code', all_zeros.shape)
+        
         real_loss = nn.functional.binary_cross_entropy_with_logits(domain_x, all_ones)
         fake_loss = nn.functional.binary_cross_entropy_with_logits(domain_z_hat, all_zeros)
 
@@ -443,7 +503,7 @@ class WhateverAgent(SegmentationAgent):
         # loss_seg = config['lambda_seg']*loss_seg
         # acc.add('loss_seg', float(loss_seg.detach().cpu()), count=len(x_i))
         
-        loss_dis_seg = config['lambda_c_adv']*loss_c_adv + config['lambda_gan']*loss_gan_d # + loss_seg
+        loss_dis_seg = config['lambda_c_adv']*loss_c_adv_d + config['lambda_gan']*loss_gan_d # + loss_seg
         loss_dis_seg.backward()
         
         self.model.step_optim_dis_seg()
@@ -468,3 +528,7 @@ class WhateverAgent(SegmentationAgent):
 
         loss = recons_loss + kld_weight * kld_loss
         return {'loss': loss, 'Reconstruction_Loss':recons_loss, 'KLD':-kld_loss}
+
+    def multi_class_cross_entropy_with_softmax(self, prediction, target):
+        softmax = nn.Softmax(dim=1)
+        return (-(target * torch.log(softmax(prediction).clamp(min=1e-08, max=1. - 1e-08))).sum(dim=-1)).mean()
