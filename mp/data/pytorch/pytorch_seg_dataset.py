@@ -103,8 +103,8 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
 
         subject = self.transform_subject(subject)
 
-        x = subject.x.tensor.permute(3, 0, 1, 2)[slice_idx]
-        y = subject.y.tensor.permute(3, 0, 1, 2)[slice_idx]
+        x = subject.x.tensor.permute(3, 0, 1, 2)[slice_idx].float()
+        y = subject.y.tensor.permute(3, 0, 1, 2)[slice_idx].float()
 
         if self.resize:
             x = trans.resize_2d(x, size=self.size)

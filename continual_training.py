@@ -65,9 +65,18 @@ data.add_dataset(dataset_domain_c)
 nr_labels = data.nr_labels
 label_names = data.label_names
 
-ds_a = ('DecathlonHippocampus', 'train')
-ds_b = ('DryadHippocampus', 'train')
-ds_c = ('HarP', 'train')
+if config['combination'] == 0:
+    ds_a = ('DecathlonHippocampus', 'train')
+    ds_b = ('DryadHippocampus', 'train')
+    ds_c = ('HarP', 'train')
+elif config['combination'] == 1:
+    ds_a = ('DecathlonHippocampus', 'train')
+    ds_c = ('DryadHippocampus', 'train')
+    ds_b = ('HarP', 'train')
+elif config['combination'] == 2:
+    ds_c = ('DecathlonHippocampus', 'train')
+    ds_b = ('DryadHippocampus', 'train')
+    ds_a = ('HarP', 'train')
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -113,7 +122,12 @@ for run_ix in range(config['nr_runs']):
         sampler = WeightedRandomSampler(samples_weight_both, len(samples_weight_both))
         
         dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
-        train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
+        
+        if config['sampler']:
+            train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
+        else:
+            print('Not using a sampler')
+            train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
    
     test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
@@ -121,7 +135,7 @@ for run_ix in range(config['nr_runs']):
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
     
     model.to(config['device'])
-
+  
     # Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=config['device'])
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], device=config['device'])
@@ -136,6 +150,7 @@ for run_ix in range(config['nr_runs']):
 
     init_epoch = 0
     nr_epochs = config['epochs'] // 2
+    # nr_epochs = int(config['epochs'] * 2/3)
 
     # Resume training
     if config['resume_epoch'] is not None:
@@ -144,6 +159,7 @@ for run_ix in range(config['nr_runs']):
 
     # Train on A and B
     if init_epoch < config['epochs'] / 2:
+    # if init_epoch < config['epochs'] * 2/3:
         config['continual'] = False
         agent.train(results, loss_f, train_dataloader, test_dataloader, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
@@ -155,6 +171,7 @@ for run_ix in range(config['nr_runs']):
         print('Finished training on A and B, starting training on C')
 
     init_epoch = config['epochs'] // 2
+    # init_epoch = int(config['epochs'] * 2/3)
     nr_epochs = config['epochs']
 
     # Resume training
@@ -164,8 +181,62 @@ for run_ix in range(config['nr_runs']):
     
     # Train on C
     if init_epoch >= config['epochs'] / 2:
+    # if init_epoch >= config['epochs'] * 1/3:
+        # config['continual'] = True
+
+        # TODO
+        # config['lr'] /= 2
+        # config['continual'] = False
+
+        # ################
+        # len_c = len(datasets[(ds_c)])
+        # len_b = len(datasets[(ds_b)])
+        # ratio = len_c / (len_a+len_b)
+        # print('length dataset C:', len_c, 'B:', len_b, 'weights C:', 1-ratio, 'B:', ratio)
+
+        # samples_weight_c = torch.full((len_c,), 1-ratio)
+        # samples_weight_b = torch.full((len_b,), ratio)
+
+        # # use WeightedRandomSampler to counter class balance
+        # # https://github.com/ptrblck/pytorch_misc/blob/master/weighted_sampling.py 
+        # samples_weight_both = torch.cat((samples_weight_c, samples_weight_b))
+        # sampler = WeightedRandomSampler(samples_weight_both, len(samples_weight_both))
+        
+        # dataset = torch.utils.data.ConcatDataset((datasets[(ds_c)], datasets[(ds_b)]))
+        # train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
+        #######################
+
         config['continual'] = True
-        print('Freezing everything but segmentor')
+        for param in model.parameters():
+            param.requires_grad = False
+       
+        if len(config['device_ids']) > 1:
+            for param in model.unet.decoder.module.decoding_blocks[-2].parameters():
+                print('BEFORE model.unet.decoder.module.decoding_blocks[-2]', param.requires_grad)
+                param.requires_grad = True
+                print('AFTER model.unet.decoder.module.decoding_blocks[-2]', param.requires_grad)
+            for param in model.unet.decoder.module.decoding_blocks[-1].parameters():
+                print('BEFORE model.unet.decoder.module.decoding_blocks[-1]', param.requires_grad)
+                param.requires_grad = True
+                print('AFTER model.unet.decoder.module.decoding_blocks[-1]', param.requires_grad)
+            for param in model.unet.classifier.parameters():
+                print('BEFORE model.unet.decoder.module.classifier', param.requires_grad)
+                param.requires_grad = True
+                print('AFTER model.unet.decoder.module.classifier', param.requires_grad)
+        else:
+            for param in model.unet.decoder.decoding_blocks[-2].parameters():
+                param.requires_grad = True
+            for param in model.unet.decoder.decoding_blocks[-1].parameters():
+                param.requires_grad = True
+            for param in model.unet.classifier.parameters():
+                param.requires_grad = True
+        
+        # model.unet_optim = optim.Adam(filter(lambda p: p.requires_grad, model.unet.parameters()),lr=config['lr'])
+        
+        model.unet_optim = optim.Adam(model.unet.parameters(),lr=config['lr'] / 3)
+        model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
+
+        print('Freezing everything but last 2 layers of segmentor')
         agent.train(results, loss_f, test_dataloader, train_dataloader, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],

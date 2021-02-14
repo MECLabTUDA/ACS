@@ -71,7 +71,9 @@ class CMFD(Model):
         self.dis_con_optim = optimizer(self.dis_con.parameters(),lr=lr)
         self.dis_dom_optim = optimizer(self.dis_dom.parameters(),lr=lr)
         self.gen_optim = optimizer(self.gen.parameters(),lr=lr)
-
+        
+        self.ls_optim = optimizer(self.latent_scaler.parameters(), lr=lr)
+        
         self.unet_optim = optimizer(self.unet.parameters(),lr=lr)
         # self.unet_encoder_optim = optimizer(self.unet.encoder.parameters(),lr=lr)
         # self.unet_bottom_block_optim = optimizer(self.unet.bottom_block.parameters(),lr=lr)

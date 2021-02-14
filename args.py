@@ -23,6 +23,9 @@ def _get_parser():
     parser.add_argument('--no-resize', action='store_true', help='specify if images should not be resized')
     parser.add_argument('--augmentation', type=str, default='none', help='augmentation to be used')
     parser.add_argument('--n-samples', type=int, default=None, help='# of samples per dataloader, only use when debugging')
+    parser.add_argument('--sampler', action='store_true', help='sample datasets to have equal # of samples')
+    parser.add_argument('--combination', type=int, default=0, help='0: ab->c, 1: ac->b, 2: bc->a')
+
 
     # training
     parser.add_argument('--epochs', type=int, default=25, help='# of epochs')
@@ -30,16 +33,16 @@ def _get_parser():
     parser.add_argument('--batch-size', type=int, default=8, help='batch size')
     parser.add_argument('--domain-code-size', type=int, default=3, help='# of domains')
     parser.add_argument('--cross-validation', action='store_true', help='specify if cross validation should be used')
-    parser.add_argument('--d-iter', type=int, default=3, help='discriminator update iterations per epoch')
+    parser.add_argument('--d-iter', type=int, default=1, help='discriminator update iterations per epoch')
 
-    parser.add_argument('--eval-interval', type=int, default=10, help='evaluation interval -> all datasets')
+    parser.add_argument('--eval-interval', type=int, default=7, help='evaluation interval -> all datasets')
     parser.add_argument('--save-interval', type=int, default=1, help='save interval')
     parser.add_argument('--display-interval', type=int, default=1, help='display/tensorboard interval')
 
     parser.add_argument('--resume-epoch', type=int, default=None, help='resume training at epoch, -1 for latest, select run using experiment-name argument')
     
     parser.add_argument('--lambda-vae', type=float, default=5, help='lambda tuning vae loss')
-    parser.add_argument('--lambda-c-adv', type=float, default=1e-1, help='lambda tuning content adversarial loss') # 1e-1
+    parser.add_argument('--lambda-c-adv', type=float, default=1, help='lambda tuning content adversarial loss') # 1e-1
     parser.add_argument('--lambda-lcr', type=float, default=1e-4, help='lambda tuning lcr loss') # 1e-4
     parser.add_argument('--lambda-seg', type=float, default=5, help='lambda tuning segmentation loss') # maybe even 10
     parser.add_argument('--lambda-c-recon', type=float, default=0, help='lambda tuning content reconstruction loss') # 1e-1
