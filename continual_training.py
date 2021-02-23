@@ -5,6 +5,7 @@
 # ------------------------------------------------------------------------------
 
 # Imports
+import os
 import sys
 from args import parse_args_as_dict
 from mp.utils.helper_functions import seed_all
@@ -41,8 +42,7 @@ from mp.models.disentangler.cmfd import CMFD
 config = parse_args_as_dict(sys.argv[1:])
 seed_all(42)
 
-config['class_weights'] = (0., 1.) # -> inverse of label ratios -> try: (0.3, 0.7)
-# config['class_weights'] = (0.8, 0.2)
+config['class_weights'] = (0., 1.)
 
 # Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
@@ -78,6 +78,9 @@ elif config['combination'] == 2:
     ds_b = ('DryadHippocampus', 'train')
     ds_a = ('HarP', 'train')
 
+# ds_test = [('DecathlonHippocampus', 'test'), ('DryadHippocampus', 'test'), ('HarP', 'test')]
+# ds_val = [('DecathlonHippocampus', 'val'), ('DryadHippocampus', 'val'), ('HarP', 'val')]
+
 # Create data splits for each repetition
 exp.set_data_splits(data)
 
@@ -93,44 +96,14 @@ for run_ix in range(config['nr_runs']):
             data_ixs = data_ixs[:config['n_samples']]
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
-                # TODO
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
 
-                # datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
-                #     ix_lst=data_ixs, size=config['input_shape'], aug_key=aug, 
-                #     resize=(not config['no_resize']))
-
-    # Combine datasets
-    if config['single_ds']:
-        dataset = datasets[(ds_a)]
-        train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-
-    else:
-        len_a = len(datasets[(ds_a)])
-        len_b = len(datasets[(ds_b)])
-        ratio = len_a / (len_a+len_b)
-        print('length dataset A:', len_a, 'B:', len_b, 'weights A:', 1-ratio, 'B:', ratio)
-
-        samples_weight_a = torch.full((len_a,), 1-ratio)
-        samples_weight_b = torch.full((len_b,), ratio)
-
-        # use WeightedRandomSampler to counter class balance
-        # https://github.com/ptrblck/pytorch_misc/blob/master/weighted_sampling.py 
-        samples_weight_both = torch.cat((samples_weight_a, samples_weight_b))
-        sampler = WeightedRandomSampler(samples_weight_both, len(samples_weight_both))
-        
-        dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
-        
-        if config['sampler']:
-            train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
-        else:
-            print('Not using a sampler')
-            train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-   
-    test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-
+    dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
+    train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    train_dataloader_1 = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    
     model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
     
@@ -147,10 +120,10 @@ for run_ix in range(config['nr_runs']):
     results = Result(name='training_trajectory')
 
     agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])
-
+    agent.summary_writer = create_writer(os.path.join(exp_run.paths['states'], '..'), 0)
+    
     init_epoch = 0
     nr_epochs = config['epochs'] // 2
-    # nr_epochs = int(config['epochs'] * 2/3)
 
     # Resume training
     if config['resume_epoch'] is not None:
@@ -161,7 +134,7 @@ for run_ix in range(config['nr_runs']):
     if init_epoch < config['epochs'] / 2:
     # if init_epoch < config['epochs'] * 2/3:
         config['continual'] = False
-        agent.train(results, loss_f, train_dataloader, test_dataloader, config,
+        agent.train(results, loss_f, train_dataloader_0, train_dataloader_1, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],
             save_path=exp_run.paths['states'], save_interval=config['save_interval'],
@@ -171,7 +144,6 @@ for run_ix in range(config['nr_runs']):
         print('Finished training on A and B, starting training on C')
 
     init_epoch = config['epochs'] // 2
-    # init_epoch = int(config['epochs'] * 2/3)
     nr_epochs = config['epochs']
 
     # Resume training
@@ -181,30 +153,6 @@ for run_ix in range(config['nr_runs']):
     
     # Train on C
     if init_epoch >= config['epochs'] / 2:
-    # if init_epoch >= config['epochs'] * 1/3:
-        # config['continual'] = True
-
-        # TODO
-        # config['lr'] /= 2
-        # config['continual'] = False
-
-        # ################
-        # len_c = len(datasets[(ds_c)])
-        # len_b = len(datasets[(ds_b)])
-        # ratio = len_c / (len_a+len_b)
-        # print('length dataset C:', len_c, 'B:', len_b, 'weights C:', 1-ratio, 'B:', ratio)
-
-        # samples_weight_c = torch.full((len_c,), 1-ratio)
-        # samples_weight_b = torch.full((len_b,), ratio)
-
-        # # use WeightedRandomSampler to counter class balance
-        # # https://github.com/ptrblck/pytorch_misc/blob/master/weighted_sampling.py 
-        # samples_weight_both = torch.cat((samples_weight_c, samples_weight_b))
-        # sampler = WeightedRandomSampler(samples_weight_both, len(samples_weight_both))
-        
-        # dataset = torch.utils.data.ConcatDataset((datasets[(ds_c)], datasets[(ds_b)]))
-        # train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'], sampler=sampler)
-        #######################
 
         config['continual'] = True
         for param in model.parameters():
@@ -231,33 +179,22 @@ for run_ix in range(config['nr_runs']):
             for param in model.unet.classifier.parameters():
                 param.requires_grad = True
         
-        # model.unet_optim = optim.Adam(filter(lambda p: p.requires_grad, model.unet.parameters()),lr=config['lr'])
+        # model.unet_optim = optim.Adam(model.unet.parameters(), lr=config['lr'] / 3)
+        # model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
         
-        model.unet_optim = optim.Adam(model.unet.parameters(),lr=config['lr'] / 3)
+        # Set optimizers
+        model.set_optimizers(optim.Adam, lr=config['lr_2'])
         model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
 
         print('Freezing everything but last 2 layers of segmentor')
-        agent.train(results, loss_f, test_dataloader, train_dataloader, config,
+        agent.train(results, loss_f, train_dataloader_1, train_dataloader_0, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],
             save_path=exp_run.paths['states'], save_interval=config['save_interval'],
             display_interval=config['display_interval'],
-            resume_epoch=config['resume_epoch'], device_ids=[0]) # device_ids=config['device_ids'])
+            resume_epoch=config['resume_epoch'], device_ids=[0])
 
         print('Finished training on C')
 
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
-    # test_ds_key = '_'.join(ds_c)
-    # metric = 'Mean_LossDice[smooth=1.0]'
-    
-    # last_dice = results.get_epoch_metric(
-    #     results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    # print('Last Dice score for hippocampus class: {}'.format(last_dice))
-
-    # import mp.visualization.visualize_imgs as vis
-    # Visualize result for the first subject in the test dataset
-    # subject_ix = 0
-    # subject = datasets[test_ds].instances[subject_ix].get_subject()
-    # pred = datasets[test_ds].predictor.get_subject_prediction(agent, subject_ix)
-    # vis.plot_3d_subject_pred(subject, pred)
