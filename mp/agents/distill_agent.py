@@ -47,7 +47,7 @@ class DistillAgent(SegmentationAgent):
         #     nr_epochs -= init_epoch
         
         # Create tensorboard summary writer 
-        self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
+        # self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
 
         # Move model to GPUs
         if len(device_ids) > 1:
@@ -67,7 +67,7 @@ class DistillAgent(SegmentationAgent):
             
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
-            acc = self.perform_training_epoch(loss_f, train_dataloader, config,
+            acc = self.perform_training_epoch(loss_f, train_dataloader, config, epoch,
                 print_run_loss=print_run_loss)
 
             rtpt.step(subtitle=f"loss={acc.mean('loss'):2.2f}")
@@ -87,12 +87,14 @@ class DistillAgent(SegmentationAgent):
                 self.save_state(save_path, epoch+1)
 
             # Track statistics in results
-            if (epoch+1) % eval_interval == 0:
-                self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+            # if (epoch+1) % eval_interval == 0:
+            #     self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
+        self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+        
         self.model.finish()
 
-    def perform_training_epoch(self, loss_f, train_dataloader, config,
+    def perform_training_epoch(self, loss_f, train_dataloader, config, epoch,
         print_run_loss=False):
         r"""Perform a training epoch
         

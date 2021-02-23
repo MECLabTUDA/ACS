@@ -47,7 +47,7 @@ class MASAgent(SegmentationAgent):
         #     nr_epochs -= init_epoch
         
         # Create tensorboard summary writer 
-        self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
+        # self.summary_writer = create_writer(os.path.join(save_path, '..'), init_epoch)
 
         # Move model to GPUs
         if len(device_ids) > 1:
@@ -87,8 +87,10 @@ class MASAgent(SegmentationAgent):
                 self.save_state(save_path, epoch+1)
 
             # Track statistics in results
-            if (epoch+1) % eval_interval == 0:
-                self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+            # if (epoch+1) % eval_interval == 0:
+            #     self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+
+        self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
         new_importance_weights = self.calc_importance_weights(train_dataloader)
         self.model.update_importance_weights(new_importance_weights)
@@ -123,13 +125,17 @@ class MASAgent(SegmentationAgent):
                 loss_mas = torch.zeros(1)
 
             if self.model.importance_weights != None:
-                model_parameters_new = filter(lambda p: p.requires_grad, self.model.unet_old.parameters())
-                model_parameters_old = filter(lambda p: p.requires_grad, self.model.unet.parameters())
-
-                for param_old, param_new, weights in zip(model_parameters_old, model_parameters_new, self.model.importance_weights):
-                    loss_mas += torch.sum( weights * ( param_new - param_old) )
+                model_parameters_new = filter(lambda p: p.requires_grad, self.model.unet.parameters())
+                model_parameters_old = filter(lambda p: p.requires_grad, self.model.unet_old.parameters())
+                
+                for param_old, param_new, weights in zip(self.model.unet_old.parameters(), self.model.unet.parameters(), self.model.importance_weights):
+                    loss_mas += torch.sum( weights * (param_new - param_old)**2 )
+                
                 loss_mas = loss_mas /  self.model.n_params_unet
+
             loss = loss_seg + config['lambda_d'] * loss_mas
+
+            # print('loss_mas', loss_mas)
             loss.backward()
 
             self.model.unet_optim.step()
@@ -300,9 +306,11 @@ class MASAgent(SegmentationAgent):
 
         param_grads = []
 
-        for param in self.model.parameters():
+        for param in self.model.unet.parameters():
             param_grads += [torch.zeros_like(param)]
 
+        max = 0
+        min = 0
         for data in tqdm(dataloader):
             # Get data
             inputs, targets = self.get_inputs_targets(data)
@@ -311,28 +319,32 @@ class MASAgent(SegmentationAgent):
             outputs = self.get_outputs(inputs)
 
             # Optimization step
-            outputs = torch.pow(outputs,2)
+            # squared l2 norm of outputs
+            # outputs = torch.pow(torch.sqrt(torch.pow(outputs,2)), 2)
+            outputs = torch.pow(torch.sqrt(torch.pow(outputs,2)), 2)
             loss = outputs.mean()
             
-            self.model.zero_grad()
+            self.model.unet.zero_grad()
 
             loss.backward()
 
-            max = 0
-            min = 0
+            # model_parameters = filter(lambda p: p.requires_grad, self.model.unet.parameters())
 
-            model_parameters = filter(lambda p: p.requires_grad, self.model.parameters())
-
-            for i, param in enumerate(model_parameters):
+            for i, param in enumerate(self.model.unet.parameters()):
                 if param.grad.abs().max() > max:
                     max = param.grad.abs().max()
                 if param.grad.abs().min() < min:
                     min = param.grad.abs().min()
 
-                param_grads += [param.grad.abs()/len(dataloader)]
+                param_grads[i] += param.grad.abs()
+                
+            # print(param.grad.abs())
+            # print(param.grad)
+            # print(len(param.grad.abs()/len(dataloader)))
+            # # normalize
 
-            # normalize
             for i, grads in enumerate(param_grads):
-                param_grads[i] = ( grads - min ) / ( max - min )
-
-            return param_grads
+                param_grads[i] = param_grads[i]/len(dataloader)
+                param_grads[i] = ( param_grads[i] - min ) / ( max - min )
+            # print(len(param_grads[i]))
+        return param_grads

@@ -62,6 +62,7 @@ class MAS(Model):
         self.unet_scheduler = scheduler(self.unet_optim, power, last_epoch=-1)
 
     def update_importance_weights(self, importance_weights):
+        
         if self.importance_weights == None:
             self.importance_weights = importance_weights
         else:
@@ -70,7 +71,6 @@ class MAS(Model):
                 self.importance_weights[i] += importance_weights[i] / self.tasks
         self.tasks += 1
 
-    
     def finish(self):
                 
         unet_new_state_dict = self.unet.state_dict()

@@ -5,6 +5,7 @@
 # ------------------------------------------------------------------------------
 
 # Imports
+import os
 import sys
 from args import parse_args_as_dict
 from mp.utils.helper_functions import seed_all
@@ -147,8 +148,10 @@ for run_ix in range(config['nr_runs']):
     results = Result(name='training_trajectory')
 
     agent = DistillAgent(model=model, label_names=label_names, device=config['device'])
+    agent.summary_writer = create_writer(os.path.join(exp_run.paths['states'], '..'), 0)
 
-    init_epoch = 0
+
+    init_epoch = 1
     nr_epochs = config['epochs'] // 3
     # nr_epochs = int(config['epochs'] * 2/3)
 
@@ -165,8 +168,8 @@ for run_ix in range(config['nr_runs']):
 
         dataset = datasets[(ds_a)]
         train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-        # model.set_optimizers(optim.SGD, lr=config['lr'], weight_decay=1e-4)
         model.set_optimizers(optim.Adam, lr=config['lr'], weight_decay=1e-4)
+        # model.set_optimizers(optim.Adam, lr=config['lr'], weight_decay=1e-4)
         model.set_scheduler(optim.lr_scheduler.ExponentialLR, power=0.9)
 
         agent.train(results, loss_f, train_dataloader, test_dataloader, config,
@@ -192,7 +195,8 @@ for run_ix in range(config['nr_runs']):
 
         dataset = datasets[(ds_b)]
         train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-        model.set_optimizers(optim.SGD, lr=5e-5, weight_decay=1e-4)
+        model.set_optimizers(optim.Adam, lr=config['lr']/2, weight_decay=1e-4)
+        # model.set_optimizers(optim.SGD, lr=5e-5, weight_decay=1e-4)
         model.set_scheduler(optim.lr_scheduler.ExponentialLR, power=0.9)
         
         agent.train(results, loss_f, test_dataloader, train_dataloader, config,
@@ -212,7 +216,8 @@ for run_ix in range(config['nr_runs']):
 
         dataset = datasets[(ds_c)]
         train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-        model.set_optimizers(optim.SGD, lr=5e-5, weight_decay=1e-4)
+        model.set_optimizers(optim.Adam, lr=config['lr']/2, weight_decay=1e-4)
+        # model.set_optimizers(optim.SGD, lr=5e-5, weight_decay=1e-4)
         model.set_scheduler(optim.lr_scheduler.ExponentialLR, power=0.9)
         
         agent.train(results, loss_f, test_dataloader, train_dataloader, config,
