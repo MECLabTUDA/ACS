@@ -32,8 +32,10 @@ def divide_path_fname(path):
     return path_to_file, file_name
 
 import numpy as np
+import random
 import torch
 def seed_all(seed=42):
+    random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True

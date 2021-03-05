@@ -103,6 +103,21 @@ for run_ix in range(config['nr_runs']):
     train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
     train_dataloader_1 = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
+    if config['eval']:
+        drop = []
+        for key in datasets.keys():
+            if 'train' in key or 'val' in key:
+                drop += [key]
+        for d in drop:
+            datasets.pop(d)
+    elif config['lambda_eval']:
+        drop = []
+        for key in datasets.keys():
+            if 'train' in key or 'test' in key:
+                drop += [key]
+        for d in drop:
+            datasets.pop(d)
+
     model = MAS(input_shape=config['input_shape'], nr_labels=nr_labels,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
     
@@ -123,6 +138,8 @@ for run_ix in range(config['nr_runs']):
 
     init_epoch = 0
     nr_epochs = config['epochs'] // 2
+
+    config['continual'] = False
 
     # Resume training
     if config['resume_epoch'] is not None:
@@ -151,13 +168,25 @@ for run_ix in range(config['nr_runs']):
     
     # Train on C
     if init_epoch >= config['epochs'] / 2:
+        
+        if config['unet_only']:
+            for param in model.parameters():
+                param.requires_grad = False
+            for param in model.unet.decoder.decoding_blocks[-2].parameters():
+                param.requires_grad = True
+            for param in model.unet.decoder.decoding_blocks[-1].parameters():
+                param.requires_grad = True
+            for param in model.unet.classifier.parameters():
+                param.requires_grad = True
 
         # model.unet_optim = optim.Adam(model.unet.parameters(), lr=config['lr'] / 3)
         # model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
         
         # Set optimizers
         model.set_optimizers(optim.Adam, lr=config['lr_2'])
-
+        config['continual'] = True
+        model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
+        
         print('Freezing everything but last 2 layers of segmentor')
         agent.train(results, loss_f, train_dataloader_1, train_dataloader_0, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,

@@ -17,6 +17,7 @@ class LossDice(LossAbstract):
     def __init__(self, smooth=1., device='cuda:0'):
         super().__init__(device=device)
         self.smooth = smooth
+        self.device = device
         self.name = 'LossDice[smooth='+str(self.smooth)+']'
 
     def forward(self, output, target):
@@ -30,10 +31,26 @@ class LossBCE(LossAbstract):
     r"""Binary cross entropy loss."""
     def __init__(self, device='cuda:0'):
         super().__init__(device=device)
+        self.device = device
         self.bce = nn.BCELoss(reduction='mean')
 
     def forward(self, output, target):
-        return self.bce(output, target)
+        # output = output.contiguous()
+        # target = target.contiguous()
+        # print(output.max(), output.min())
+        # print(target.max(), target.min())
+        # print(output.max(), output.min())
+        # print(target.max(), target.min())
+        # print(torch.isnan(output).any())
+        # print(torch.isnan(target).any())
+        try:
+            bce_loss = self.bce(output, target)
+        except:
+            print(output.max(), output.min())
+            print(target.max(), target.min())
+            print(torch.isnan(output).any())
+            print(torch.isnan(target).any())
+        return bce_loss # self.bce(output, target)
 
 class LossBCEWithLogits(LossAbstract):
     r"""More stable than following applying a sigmoid function to the output 
@@ -60,7 +77,7 @@ class LossCombined(LossAbstract):
         self.name = self.name[:-1] + ']'
 
     def forward(self, output, target):
-        total_loss = torch.tensor(0.0).to(self.device)
+        total_loss = torch.zeros(1).to(self.device)
         for loss, weight in zip(self.losses, self.weights):
             total_loss += weight*loss(output, target)
         return total_loss
@@ -100,9 +117,9 @@ class LossClassWeighted(LossAbstract):
         self.added_weights = self.class_weights.sum()
         
     def forward(self, output, target):
-        batch_loss = torch.tensor(0.0).to(self.device)
+        batch_loss = torch.zeros(1).to(self.device)
         for instance_output, instance_target in zip(output, target):
-            instance_loss = torch.tensor(0.0).to(self.device)
+            instance_loss = torch.zeros(1).to(self.device)
             for out_channel_output, out_channel_target, weight in zip(instance_output, instance_target, self.class_weights):
                 instance_loss += weight * self.loss(out_channel_output, 
                     out_channel_target)

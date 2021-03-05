@@ -15,5 +15,5 @@ class SegmentationAgent(Agent):
     def get_outputs(self, inputs):
         r"""Applies a softmax transformation to the model outputs"""
         outputs = self.model(inputs)
-        outputs = softmax(outputs)
+        outputs = softmax(outputs).clamp(min=1e-08, max=1.-1e-08)
         return outputs

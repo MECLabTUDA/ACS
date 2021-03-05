@@ -72,6 +72,8 @@ class MASAgent(SegmentationAgent):
 
             rtpt.step(subtitle=f"loss={acc.mean('loss'):2.2f}")
             
+            if config['continual']:
+                self.model.unet_scheduler.step()
 
             # Write losses to tensorboard
             if (epoch+1) % display_interval == 0:
@@ -90,6 +92,7 @@ class MASAgent(SegmentationAgent):
             # if (epoch+1) % eval_interval == 0:
             #     self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
+        # print('STOPPED METRIC TRACKING !!!')
         self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
         new_importance_weights = self.calc_importance_weights(train_dataloader)
@@ -107,7 +110,7 @@ class MASAgent(SegmentationAgent):
         acc = Accumulator('loss')
         start_time = time.time()
 
-        for data in tqdm(train_dataloader):
+        for data in tqdm(train_dataloader, disable=True):
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -118,24 +121,22 @@ class MASAgent(SegmentationAgent):
             self.model.unet_optim.zero_grad()
 
             loss_seg = loss_f(outputs, targets)
-
+            
             if loss_seg.is_cuda:
                 loss_mas = torch.zeros(1).to(loss_seg.get_device())
             else:
                 loss_mas = torch.zeros(1)
 
-            if self.model.importance_weights != None:
+            if self.model.importance_weights != None and not config['unet_only']:
                 model_parameters_new = filter(lambda p: p.requires_grad, self.model.unet.parameters())
                 model_parameters_old = filter(lambda p: p.requires_grad, self.model.unet_old.parameters())
                 
                 for param_old, param_new, weights in zip(self.model.unet_old.parameters(), self.model.unet.parameters(), self.model.importance_weights):
-                    loss_mas += torch.sum( weights * (param_new - param_old)**2 )
-                
-                loss_mas = loss_mas /  self.model.n_params_unet
-
+                    if param_new.requires_grad:
+                        loss_mas += torch.sum( weights * (param_new - param_old)**2 ) /  self.model.n_params_unet
+                       
             loss = loss_seg + config['lambda_d'] * loss_mas
 
-            # print('loss_mas', loss_mas)
             loss.backward()
 
             self.model.unet_optim.step()
@@ -147,7 +148,7 @@ class MASAgent(SegmentationAgent):
         # self.model.unet_scheduler.step()
 
         if print_run_loss:
-            print('\nrunning loss: {} - time/epoch {}'.format(acc.mean('loss'), round(time.time()-start_time, 4)))
+            print('\nrunning loss: {} - mas: {} - time/epoch {}'.format(acc.mean('loss'), acc.mean('loss_mas'), round(time.time()-start_time, 4)))
 
         return acc
 
@@ -299,19 +300,20 @@ class MASAgent(SegmentationAgent):
         r"""Applies a softmax transformation to the model outputs"""
         outputs = self.model.forward_old(inputs)
         # softmax = nn.Softmax(dim=1)
-        outputs = softmax(outputs)
+        outputs = softmax(outputs).clamp(min=1e-08, max=1.-1e-08)
         return outputs
     
     def calc_importance_weights(self, dataloader):
 
+        # Source
+        # https://github.com/GT-RIPL/Continual-Learning-Benchmark/blob/master/agents/regularization.py
         param_grads = []
 
         for param in self.model.unet.parameters():
             param_grads += [torch.zeros_like(param)]
-
-        max = 0
         min = 0
-        for data in tqdm(dataloader):
+        max = 0
+        for data in tqdm(dataloader, disable=True):
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -331,20 +333,15 @@ class MASAgent(SegmentationAgent):
             # model_parameters = filter(lambda p: p.requires_grad, self.model.unet.parameters())
 
             for i, param in enumerate(self.model.unet.parameters()):
-                if param.grad.abs().max() > max:
-                    max = param.grad.abs().max()
-                if param.grad.abs().min() < min:
-                    min = param.grad.abs().min()
+                # print(param.grad.abs())
+                if param.grad.max() > max:
+                    max = param.grad.max()
+                if param.grad.min() < min:
+                    min = param.grad.min()
 
-                param_grads[i] += param.grad.abs()
-                
-            # print(param.grad.abs())
-            # print(param.grad)
-            # print(len(param.grad.abs()/len(dataloader)))
-            # # normalize
-
-            for i, grads in enumerate(param_grads):
-                param_grads[i] = param_grads[i]/len(dataloader)
-                param_grads[i] = ( param_grads[i] - min ) / ( max - min )
-            # print(len(param_grads[i]))
+                param_grads[i] += param.grad / len(dataloader)
+        
+        for i in range(len(param_grads)):
+            param_grads[i] = (param_grads[i] - min ) / ( max - min )
+        
         return param_grads

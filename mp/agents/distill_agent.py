@@ -59,8 +59,10 @@ class DistillAgent(SegmentationAgent):
         #     self.track_metrics(init_epoch, results, loss_f, eval_datasets)
         
         from rtpt import RTPT
-        rtpt = RTPT(name_initials='MM', experiment_name='PrototypeCAE', max_iterations=nr_epochs)
+        rtpt = RTPT(name_initials='MM', experiment_name='ProAE', max_iterations=nr_epochs)
         rtpt.start()
+
+        print(config)
 
         for epoch in range(init_epoch, nr_epochs):
             self.agent_state_dict['epoch'] = epoch
@@ -72,6 +74,8 @@ class DistillAgent(SegmentationAgent):
 
             rtpt.step(subtitle=f"loss={acc.mean('loss'):2.2f}")
             
+            if config['continual']:
+                self.model.unet_scheduler.step()
 
             # Write losses to tensorboard
             if (epoch+1) % display_interval == 0:
@@ -90,6 +94,7 @@ class DistillAgent(SegmentationAgent):
             # if (epoch+1) % eval_interval == 0:
             #     self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
+        # print('STOPPED METRIC TRACKING !!!')
         self.track_metrics(epoch+1, results, loss_f, eval_datasets)
         
         self.model.finish()
@@ -105,7 +110,7 @@ class DistillAgent(SegmentationAgent):
         acc = Accumulator('loss')
         start_time = time.time()
 
-        for data in tqdm(train_dataloader):
+        for data in tqdm(train_dataloader, disable=True):
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -115,7 +120,13 @@ class DistillAgent(SegmentationAgent):
             # Optimization step
             self.model.unet_optim.zero_grad()
 
-            loss_seg = loss_f(outputs, targets)
+            try:
+                loss_seg = loss_f(outputs, targets)
+            except:
+                print(outputs.min(), outputs.max())
+                print(torch.isnan(outputs).any())
+                print(targets.min(), targets.max())
+                print(torch.isnan(targets).any())
 
             if self.model.unet_old != None:
                 outputs_old = self.get_outputs_old(inputs)
@@ -138,7 +149,7 @@ class DistillAgent(SegmentationAgent):
         # self.model.unet_scheduler.step()
 
         if print_run_loss:
-            print('\nrunning loss: {} - time/epoch {}'.format(acc.mean('loss'), round(time.time()-start_time, 4)))
+            print('\nrunning loss: {} - distill {} - time/epoch {}'.format(acc.mean('loss'), acc.mean('loss_distill'), round(time.time()-start_time, 4)))
 
         return acc
 

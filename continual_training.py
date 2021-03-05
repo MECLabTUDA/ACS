@@ -44,6 +44,8 @@ seed_all(42)
 
 config['class_weights'] = (0., 1.)
 
+print('config', config)
+
 # Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
 
@@ -104,9 +106,17 @@ for run_ix in range(config['nr_runs']):
     train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
     train_dataloader_1 = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
     
+    if config['eval']:
+        drop = []
+        for key in datasets.keys():
+            if 'train' in key or 'val' in key:
+                drop += [key]
+        for d in drop:
+            datasets.pop(d)
+    
     model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
-    
+
     model.to(config['device'])
   
     # Define loss and optimizer
@@ -184,6 +194,7 @@ for run_ix in range(config['nr_runs']):
         
         # Set optimizers
         model.set_optimizers(optim.Adam, lr=config['lr_2'])
+        config['continual'] = True
         model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
 
         print('Freezing everything but last 2 layers of segmentor')

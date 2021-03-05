@@ -66,6 +66,7 @@ class WhateverAgent(SegmentationAgent):
             
             if config['continual']:
                 self.model.unet_scheduler.step()
+
             # Write losses to tensorboard
             if (epoch+1) % display_interval == 0:
                 self.track_loss(acc, epoch+1, config)
@@ -97,7 +98,7 @@ class WhateverAgent(SegmentationAgent):
         start_time = time.time()
 
         if config['unet_only']:
-            for data in tqdm(train_dataloader):
+            for data in tqdm(train_dataloader, disable=True):
                 # Get data
                 inputs, targets, _ = self.get_inputs_targets(data, eval=False)
 
@@ -116,7 +117,7 @@ class WhateverAgent(SegmentationAgent):
                 acc.add('loss_seg', float(loss.detach().cpu()), count=len(inputs))
 
         elif config['continual']:
-            for data in tqdm(train_dataloader):
+            for data in tqdm(train_dataloader, disable=True):
 
                 x, y, domain_code = self.get_inputs_targets(data, eval=False)
 
@@ -132,7 +133,7 @@ class WhateverAgent(SegmentationAgent):
                 acc.add('loss', float(loss_comb.detach().cpu()), count=len(x))
 
         else:
-            for data in tqdm(train_dataloader):
+            for data in tqdm(train_dataloader, disable=True):
 
                 x, y, domain_code = self.get_inputs_targets(data, eval=False)
         

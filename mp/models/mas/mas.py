@@ -62,7 +62,6 @@ class MAS(Model):
         self.unet_scheduler = scheduler(self.unet_optim, power, last_epoch=-1)
 
     def update_importance_weights(self, importance_weights):
-        
         if self.importance_weights == None:
             self.importance_weights = importance_weights
         else:
@@ -79,6 +78,6 @@ class MAS(Model):
 
         self.unet_old = UNet2D(self.input_shape, self.nr_labels, dropout=self.unet_dropout, monte_carlo_dropout=self.unet_monte_carlo_dropout, preactivation=self.unet_preactivation)
         self.unet_old.load_state_dict(unet_new_state_dict)
-        # self.unet_old = self.freeze_unet(self.unet_old)
+        self.unet_old = self.freeze_unet(self.unet_old)
 
         self.unet_old.to(device)
