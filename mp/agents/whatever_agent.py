@@ -1,3 +1,4 @@
+from mp.data.pytorch.transformation import torchvision_rescaling
 import time
 import os
 import torch
@@ -51,7 +52,7 @@ class WhateverAgent(SegmentationAgent):
         print('Using GPUs:', device_ids)
 
         from rtpt import RTPT
-        rtpt = RTPT(name_initials='MM', experiment_name='PrototypeCAE', max_iterations=nr_epochs)
+        rtpt = RTPT(name_initials='MM', experiment_name='Proto', max_iterations=nr_epochs)
         rtpt.start()
 
         for epoch in range(init_epoch, nr_epochs):
@@ -84,6 +85,10 @@ class WhateverAgent(SegmentationAgent):
             # if (epoch+1) % eval_interval == 0:
             #     self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
+            # TODO: REMOVE
+        if epoch == 29:
+            self.track_metrics(epoch+1, results, loss_f, eval_datasets)
+                
         self.track_metrics(epoch+1, results, loss_f, eval_datasets)
 
     def perform_training_epoch(self, loss_f, train_dataloader, config,
@@ -251,8 +256,14 @@ class WhateverAgent(SegmentationAgent):
         save_path_pred = os.path.join(save_path, f'e_{epoch:06d}_{phase}_pred.png')
         save_path_label = os.path.join(save_path, f'e_{epoch:06d}_{phase}_label.png')
         
-        plot_3d_segmentation(x_i_img, x_i_seg_mask, save_path=save_path_pred, img_size=(256, 256), alpha=0.5)
-        plot_3d_segmentation(x_i_img, y_i_seg_mask, save_path=save_path_label, img_size=(256, 256), alpha=0.5)
+        # for i, (x_ii, y_ii) in enumerate(zip(x_i, y_i)):
+        #     save_path_gt = os.path.join(save_path, f'e_{epoch:06d}_{phase}_{i}_x.png')
+        #     plot_3d_segmentation(x_ii.unsqueeze(0), torch.zeros_like(x_i_seg_mask), save_path=save_path_gt, img_size=(64, 64), alpha=0.5)
+        #     save_path_label = os.path.join(save_path, f'e_{epoch:06d}_{phase}_{i}_label.png')
+        #     plot_3d_segmentation(x_ii.unsqueeze(0), y_ii[1].unsqueeze(0).unsqueeze(0).int(), save_path=save_path_label, img_size=(64, 64), alpha=0.5)
+
+        plot_3d_segmentation(x_i_img, x_i_seg_mask, save_path=save_path_pred, img_size=(config['input_dim_hw'], config['input_dim_hw']), alpha=0.5)
+        plot_3d_segmentation(x_i_img, y_i_seg_mask, save_path=save_path_label, img_size=(config['input_dim_hw'], config['input_dim_hw']), alpha=0.5)
         
         image = Image.open(save_path_pred)
         image = TF.to_tensor(image)
@@ -270,7 +281,7 @@ class WhateverAgent(SegmentationAgent):
 
             save_path_gan = os.path.join(save_path, f'e_{epoch:06d}_{phase}_gan.png')
 
-            plot_3d_segmentation(x_hat, torch.zeros(x_hat.shape), save_path=save_path_gan, img_size=(256, 256), alpha=0.5)
+            plot_3d_segmentation(x_hat, torch.zeros(x_hat.shape), save_path=save_path_gan, img_size=(config['input_dim_hw'], config['input_dim_hw']), alpha=0.5)
 
             image = Image.open(save_path_gan)
             image = TF.to_tensor(image)

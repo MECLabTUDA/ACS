@@ -11,6 +11,7 @@ from args import parse_args_as_dict
 from mp.utils.helper_functions import seed_all
 
 import torch
+torch.set_num_threads(6)
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -103,7 +104,7 @@ for run_ix in range(config['nr_runs']):
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
 
     dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)], datasets[(ds_c)]))
-    train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
     
     if config['eval']:
         drop = []

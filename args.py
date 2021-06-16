@@ -19,7 +19,7 @@ def _get_parser():
     parser.add_argument('--test-ratio', type=float, default=0.2, help='ratio of data to be used for testing')
     parser.add_argument('--val-ratio', type=float, default=0.125, help='ratio of data to be used for validation')
     parser.add_argument('--input_dim_c', type=int, default=1, help='input channels for images') 
-    parser.add_argument('--input_dim_hw', type=int, default=256, help='height and width for images')
+    parser.add_argument('--input_dim_hw', type=int, default=64, help='height and width for images')
     parser.add_argument('--no-resize', action='store_true', help='specify if images should not be resized')
     parser.add_argument('--augmentation', type=str, default='none', help='augmentation to be used')
     parser.add_argument('--n-samples', type=int, default=None, help='# of samples per dataloader, only use when debugging')
@@ -31,7 +31,7 @@ def _get_parser():
     parser.add_argument('--epochs', type=int, default=60, help='# of epochs')
     parser.add_argument('--lr', type=float, default=2e-4, help='learning rate')
     parser.add_argument('--lr-2', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--batch-size', type=int, default=40, help='batch size')
+    parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--domain-code-size', type=int, default=3, help='# of domains')
     parser.add_argument('--cross-validation', action='store_true', help='specify if cross validation should be used')
     parser.add_argument('--d-iter', type=int, default=1, help='discriminator update iterations per epoch')
@@ -48,13 +48,6 @@ def _get_parser():
     parser.add_argument('--lambda-seg', type=float, default=5, help='lambda tuning segmentation loss') # maybe even 10
     parser.add_argument('--lambda-c-recon', type=float, default=0, help='lambda tuning content reconstruction loss') # 1e-1
     parser.add_argument('--lambda-gan', type=float, default=5, help='lambda tuning gan loss')
-
-    # parser.add_argument('--lambda-vae', type=float, default=1, help='lambda tuning vae loss')
-    # parser.add_argument('--lambda-c-adv', type=float, default=1, help='lambda tuning content adversarial loss') # 1e-1
-    # parser.add_argument('--lambda-lcr', type=float, default=0, help='lambda tuning lcr loss') # 1e-4
-    # parser.add_argument('--lambda-seg', type=float, default=1, help='lambda tuning segmentation loss') # maybe even 10
-    # parser.add_argument('--lambda-c-recon', type=float, default=1e-1, help='lambda tuning content reconstruction loss') # 1e-1
-    # parser.add_argument('--lambda-gan', type=float, default=1, help='lambda tuning gan loss')
 
     parser.add_argument('--lambda-d', type=float, default=1, help='lambda for tuning MAS or knowdistill loss')
 

@@ -10,6 +10,7 @@ from args import parse_args_as_dict
 from mp.utils.helper_functions import seed_all
 
 import torch
+torch.set_num_threads(6)
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -95,9 +96,9 @@ for run_ix in range(config['nr_runs']):
         dataset = datasets[(ds_a)]
     else:
         dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
-    train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
    
-    test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=True, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
+    test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
 
     model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
