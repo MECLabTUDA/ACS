@@ -16,7 +16,7 @@ from mp.visualization.visualize_imgs import plot_3d_segmentation
 from mp.utils.load_restore import pkl_dump, pkl_load
 
 
-class CASAgent(SegmentationAgent):
+class ACSAgent(SegmentationAgent):
     r"""Extension of SegmentationAgent to support CAS.
     """
     def __init__(self, *args, **kwargs):

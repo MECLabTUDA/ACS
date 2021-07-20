@@ -19,11 +19,11 @@ from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDatasetDomain
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
-from mp.agents.cas_agent import CAS
+from mp.agents.acs_agent import ACS
 from mp.eval.result import Result
 from mp.utils.tensorboard import create_writer
 from mp.utils.helper_functions import seed_all
-from mp.models.continual.cas import CAS
+from mp.models.continual.acs import ACS
 
 # Get configuration from arguments
 config = parse_args_as_dict(sys.argv[1:])
@@ -97,7 +97,7 @@ for run_ix in range(config['nr_runs']):
         for d in drop:
             datasets.pop(d)
     
-    model = CAS(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
+    model = ACS(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
 
     model.to(config['device'])
@@ -112,7 +112,7 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')
 
-    agent = CASAgent(model=model, label_names=label_names, device=config['device'])
+    agent = ACSAgent(model=model, label_names=label_names, device=config['device'])
     agent.summary_writer = create_writer(os.path.join(exp_run.paths['states'], '..'), 0)
     
     init_epoch = 0

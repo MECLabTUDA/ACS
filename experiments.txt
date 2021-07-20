@@ -1,14 +1,14 @@
 ### RESULTS
 
 # CAS
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 0 --experiment-name ours_0 --eval > ours_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 1 --experiment-name ours_1 --eval > ours_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 2 --experiment-name ours_2 --eval > ours_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 0 --experiment-name ours_0 --eval > ours_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 1 --experiment-name ours_1 --eval > ours_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 2 --experiment-name ours_2 --eval > ours_2.log
 
 # UNET
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 0 --experiment-name unet_0_pe --eval --unet-only > unet_b_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 1 --experiment-name unet_1_ne --eval --unet-only > unet_b_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 2 --experiment-name unet_2_ne --eval --unet-only > unet_b_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 0 --experiment-name unet_0_pe --eval --unet-only > unet_b_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 1 --experiment-name unet_1_ne --eval --unet-only > unet_b_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 --combination 2 --experiment-name unet_2_ne --eval --unet-only > unet_b_2.log
 
 # MAS
 nohup python mas_train.py --combination 0  --lambda-d 0.1 --eval --experiment-name mas27_0 > mas_0.log
@@ -42,26 +42,26 @@ nohup python kd_train.py --batch-size 40 --epochs 60 --device-ids 0 --combinatio
 ### ABLATION
 
 #--lambda-c-adv 0
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 0 --experiment-name ours_no_c_adv_0 --eval > ours_no_c_adv_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 1 --experiment-name ours_no_c_adv_1 --eval > ours_no_c_adv_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 2 --experiment-name ours_no_c_adv_2 --eval > ours_no_c_adv_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 0 --experiment-name ours_no_c_adv_0 --eval > ours_no_c_adv_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 1 --experiment-name ours_no_c_adv_1 --eval > ours_no_c_adv_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-c-adv 0 --combination 2 --experiment-name ours_no_c_adv_2 --eval > ours_no_c_adv_2.log
 
 #--lambda-vae 0 --lambda-gan 0 --lambda-lcr 0
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 0 --experiment-name ours_no_ganvaelr_0 --eval > ours_no_ganvaelr_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 1 --experiment-name ours_no_ganvaelr_1 --eval > ours_no_ganvaelr_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 2 --experiment-name ours_no_ganvaelr_2 --eval > ours_no_ganvaelr_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 0 --experiment-name ours_no_ganvaelr_0 --eval > ours_no_ganvaelr_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 1 --experiment-name ours_no_ganvaelr_1 --eval > ours_no_ganvaelr_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0 --lambda-gan 0 --lambda-lcr 0 --combination 2 --experiment-name ours_no_ganvaelr_2 --eval > ours_no_ganvaelr_2.log
 
 #--lambda-vae 5 --lambda-gan 0
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 0 --experiment-name ours_no_gan_0 --eval > ours_no_gan_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 1 --experiment-name ours_no_gan_1 --eval > ours_no_gan_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 2 --experiment-name ours_no_gan_2 --eval > ours_no_gan_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 0 --experiment-name ours_no_gan_0 --eval > ours_no_gan_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 1 --experiment-name ours_no_gan_1 --eval > ours_no_gan_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-gan 0  --combination 2 --experiment-name ours_no_gan_2 --eval > ours_no_gan_2.log
 
 --lambda-vae 0 --lambda-gan 5
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 0 --experiment-name ours_no_vae_0 --eval > ours_no_vae_0.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 1 --experiment-name ours_no_vae_1 --eval > ours_no_vae_1.log
-nohup python cas_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 2 --experiment-name ours_no_vae_2 --eval > ours_no_vae_2.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 0 --experiment-name ours_no_vae_0 --eval > ours_no_vae_0.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 1 --experiment-name ours_no_vae_1 --eval > ours_no_vae_1.log
+nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --lambda-vae 0  --combination 2 --experiment-name ours_no_vae_2 --eval > ours_no_vae_2.log
 
 ### JOINT
 
-nohup python cas_joint_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --experiment-name ours_joint_e0_60 --eval > ours_joint.log
+nohup python acs_joint_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --experiment-name ours_joint_e0_60 --eval > ours_joint.log
 nohup python unet_joint_train.py --batch-size 40 --epochs 60 --device-ids 0 --experiment-name unet_all_joint --eval > unet_joint.log
