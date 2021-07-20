@@ -1,0 +1,208 @@
+Device name: cuda:0
+Experiment name: mas27_2_
+
+DATASET: DecathlonHippocampus with 260 instances
+Mean shape: (1, 35, 49, 35), shape std: (0, 1, 3, 4)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: DryadHippocampus[Modality:T1w][Resolution:Standard] with 50 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: HarP[Part:All] with 226 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+Dividing dataset
+Repetition k 1 of 1
+Repetition k 1 of 1
+Repetition k 1 of 1
+
+
+Using GPUs: [0]
+
+running loss: 1.4504868642515003 - mas: 0.0 - time/epoch 77.5386
+
+running loss: 1.1615253110273653 - mas: 0.0 - time/epoch 76.8021
+
+running loss: 0.9836888130790636 - mas: 0.0 - time/epoch 76.29
+
+running loss: 0.8593936750865526 - mas: 0.0 - time/epoch 76.3686
+
+running loss: 0.7725288164149666 - mas: 0.0 - time/epoch 76.879
+
+running loss: 0.7150683439904005 - mas: 0.0 - time/epoch 77.3168
+
+running loss: 0.753829306616457 - mas: 0.0 - time/epoch 78.0267
+
+running loss: 0.6829408646988946 - mas: 0.0 - time/epoch 77.0438
+
+running loss: 0.6593807386750119 - mas: 0.0 - time/epoch 77.2499
+
+running loss: 0.649564219559831 - mas: 0.0 - time/epoch 77.2827
+
+running loss: 0.6332148328083734 - mas: 0.0 - time/epoch 77.1716
+
+running loss: 0.6185347429607124 - mas: 0.0 - time/epoch 77.1738
+
+running loss: 0.4963832060269502 - mas: 0.0 - time/epoch 77.0273
+
+running loss: 0.2265017804619932 - mas: 0.0 - time/epoch 77.1541
+
+running loss: 0.18781305378733706 - mas: 0.0 - time/epoch 77.1957
+
+running loss: 0.1636234508396554 - mas: 0.0 - time/epoch 76.2627
+
+running loss: 0.15846677799178258 - mas: 0.0 - time/epoch 76.3757
+
+running loss: 0.14687560796616325 - mas: 0.0 - time/epoch 77.4072
+
+running loss: 0.13856156769963981 - mas: 0.0 - time/epoch 77.4449
+
+running loss: 0.14203762385162982 - mas: 0.0 - time/epoch 77.2099
+
+running loss: 0.13614425831853566 - mas: 0.0 - time/epoch 77.1734
+
+running loss: 0.12667538382034105 - mas: 0.0 - time/epoch 76.6807
+
+running loss: 0.1351370339256071 - mas: 0.0 - time/epoch 77.0734
+
+running loss: 0.1281119511229159 - mas: 0.0 - time/epoch 77.2082
+
+running loss: 0.1198205198411578 - mas: 0.0 - time/epoch 77.2286
+
+running loss: 0.1181627369086874 - mas: 0.0 - time/epoch 76.3268
+
+running loss: 0.13314745128564293 - mas: 0.0 - time/epoch 77.248
+
+running loss: 0.11875439991155208 - mas: 0.0 - time/epoch 77.1943
+
+running loss: 0.12216046026298102 - mas: 0.0 - time/epoch 76.8916
+
+running loss: 0.11923934866451273 - mas: 0.0 - time/epoch 76.3057
+Epoch 30 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 1.1917414302356315
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 2.362462082412256
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 1.1917414302356315
+ScoreDice: 0.6923463091756227
+ScoreIoU: 0.6080704666779495
+ScoreDice[background]: 0.9774000944913734
+ScoreIoU[background]: 0.9558338592971505
+ScoreDice[hippocampus]: 0.40729252385987197
+ScoreIoU[hippocampus]: 0.26030707405874853
+Epoch 30 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.21423590569538647
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.047660428627825525
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.21423590569538647
+ScoreDice: 0.9266197234456076
+ScoreIoU: 0.8715183483019681
+ScoreDice[background]: 0.9965412356156881
+ScoreIoU[background]: 0.9931069692616976
+ScoreDice[hippocampus]: 0.8566982112755273
+ScoreIoU[hippocampus]: 0.749929727342239
+Epoch 30 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.22998185568987695
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.0656800941282389
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.22998185568987695
+ScoreDice: 0.890707637316561
+ScoreIoU: 0.8217178519412507
+ScoreDice[background]: 0.9969946273149075
+ScoreIoU[background]: 0.9940084033436198
+ScoreDice[hippocampus]: 0.7844206473182144
+ScoreIoU[hippocampus]: 0.6494273005388816
+Finished training on A and B, starting training on C
+Freezing everything but last 2 layers of segmentor
+Using GPUs: [0]
+
+running loss: 0.2919917324203655 - mas: 5.379780779221751e-07 - time/epoch 43.4427
+
+running loss: 0.22111766396856014 - mas: 1.2653145783052462e-06 - time/epoch 43.3329
+
+running loss: 0.20884022144086523 - mas: 1.998971595673365e-06 - time/epoch 43.6774
+
+running loss: 0.19921509446176283 - mas: 2.6663453530319686e-06 - time/epoch 43.2841
+
+running loss: 0.19532925914401658 - mas: 3.3636773629945187e-06 - time/epoch 43.3732
+
+running loss: 0.18938349242225014 - mas: 3.899039270743218e-06 - time/epoch 43.3061
+
+running loss: 0.18419803573858518 - mas: 4.6040943777197585e-06 - time/epoch 43.339
+
+running loss: 0.18187745125747165 - mas: 5.236091097697017e-06 - time/epoch 43.5729
+
+running loss: 0.17827851649808005 - mas: 5.80767013764286e-06 - time/epoch 43.558
+
+running loss: 0.18200385922486065 - mas: 6.416036726170729e-06 - time/epoch 43.4126
+
+running loss: 0.174102969513349 - mas: 6.979447800649667e-06 - time/epoch 44.3903
+
+running loss: 0.17218726658565134 - mas: 7.498195119168391e-06 - time/epoch 43.3831
+
+running loss: 0.17124023352481105 - mas: 7.977219603759697e-06 - time/epoch 43.1442
+
+running loss: 0.1763444740805158 - mas: 8.593680893213479e-06 - time/epoch 43.32
+
+running loss: 0.17426242135419437 - mas: 9.395828030191425e-06 - time/epoch 43.2262
+
+running loss: 0.16684036976172148 - mas: 9.963734198538044e-06 - time/epoch 43.2632
+
+running loss: 0.17215660127576876 - mas: 1.071707363712867e-05 - time/epoch 43.3222
+
+running loss: 0.16861234422476012 - mas: 1.1434932571458717e-05 - time/epoch 43.2932
+
+running loss: 0.16881279606212135 - mas: 1.2153852116104081e-05 - time/epoch 43.2683
+
+running loss: 0.1677368659457546 - mas: 1.2745091555155514e-05 - time/epoch 42.7864
+
+running loss: 0.16415965205138447 - mas: 1.3390586309190668e-05 - time/epoch 42.9508
+
+running loss: 0.1626934021985604 - mas: 1.3833514910340924e-05 - time/epoch 42.9613
+
+running loss: 0.1648348856923039 - mas: 1.4349605937988678e-05 - time/epoch 42.975
+
+running loss: 0.16389022753831067 - mas: 1.49181296532378e-05 - time/epoch 43.2178
+
+running loss: 0.1596681900733819 - mas: 1.5361839979033534e-05 - time/epoch 42.9163
+
+running loss: 0.16448307320749833 - mas: 1.6041758901081077e-05 - time/epoch 42.9985
+
+running loss: 0.17617124968145523 - mas: 1.7179628403195283e-05 - time/epoch 43.0624
+
+running loss: 0.1639816137544948 - mas: 1.7731988472589778e-05 - time/epoch 42.8596
+
+running loss: 0.15889277866830123 - mas: 1.8398237131297463e-05 - time/epoch 43.3402
+
+running loss: 0.16623608731419032 - mas: 1.9079674318046423e-05 - time/epoch 43.3788
+Epoch 60 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.47293386531137577
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.12082784147772994
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.47293386531137577
+ScoreDice: 0.9196503971772181
+ScoreIoU: 0.8605934421258389
+ScoreDice[background]: 0.9914396781514269
+ScoreIoU[background]: 0.9830351306386962
+ScoreDice[hippocampus]: 0.8478611162030096
+ScoreIoU[hippocampus]: 0.7381517536129814
+Epoch 60 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.5871624335413799
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.06967373952334839
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.5871624335413799
+ScoreDice: 0.8811930604141317
+ScoreIoU: 0.807297429359018
+ScoreDice[background]: 0.9940091785190667
+ScoreIoU[background]: 0.988094290630207
+ScoreDice[hippocampus]: 0.7683769423091965
+ScoreIoU[hippocampus]: 0.6265005680878291
+Epoch 60 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.7753157159364175
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.11108372359521128
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.7753157159364175
+ScoreDice: 0.7807347434977389
+ScoreIoU: 0.6962050037568943
+ScoreDice[background]: 0.9915493820674617
+ScoreIoU[background]: 0.9832629871892702
+ScoreDice[hippocampus]: 0.5699201049280163
+ScoreIoU[hippocampus]: 0.4091470203245184
+Finished training on C

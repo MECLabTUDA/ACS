@@ -1,0 +1,263 @@
+Device name: cuda:0
+config {'experiment_name': 'ours_no_ganvaelr_0', 'nr_runs': 1, 'device': 'cuda:0', 'device_ids': [0, 1, 2, 3], 'n_workers': 2, 'test_ratio': 0.2, 'val_ratio': 0.125, 'input_dim_c': 1, 'input_dim_hw': 256, 'no_resize': False, 'augmentation': 'none', 'n_samples': None, 'sampler': False, 'combination': 0, 'epochs': 60, 'lr': 0.0002, 'lr_2': 0.0001, 'batch_size': 40, 'domain_code_size': 4, 'cross_validation': False, 'd_iter': 1, 'eval_interval': 7, 'save_interval': 1, 'display_interval': 1, 'resume_epoch': None, 'lambda_vae': 0.0, 'lambda_c_adv': 1, 'lambda_lcr': 0.0, 'lambda_seg': 5, 'lambda_c_recon': 0, 'lambda_gan': 0.0, 'lambda_d': 1, 'eval': True, 'lambda_eval': False, 'unet_only': False, 'unet_dropout': 0, 'unet_monte_carlo_dropout': 0, 'unet_preactivation': False, 'single_ds': False, 'input_shape': (1, 256, 256), 'class_weights': (0.0, 1.0)}
+Experiment name: ours_no_ganvaelr_0
+
+DATASET: DecathlonHippocampus with 260 instances
+Mean shape: (1, 35, 49, 35), shape std: (0, 1, 3, 4)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: DryadHippocampus[Modality:T1w][Resolution:Standard] with 50 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: HarP[Part:All] with 226 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+Dividing dataset
+Repetition k 1 of 1
+Repetition k 1 of 1
+Repetition k 1 of 1
+
+
+Using GPUs: [0, 1, 2, 3]
+
+running loss: 8.4304608732598 - time/epoch 402.1098
+
+running loss: 6.915358754597842 - time/epoch 395.8944
+
+running loss: 6.095423554720944 - time/epoch 397.2324
+
+running loss: 5.334341652317134 - time/epoch 397.8082
+
+running loss: 4.825808338922997 - time/epoch 396.7588
+
+running loss: 4.432299819711137 - time/epoch 394.9704
+
+running loss: 4.183574833282052 - time/epoch 397.1096
+
+running loss: 4.022286214784945 - time/epoch 397.1367
+
+running loss: 3.9094963792252213 - time/epoch 395.6871
+
+running loss: 3.8128591552716955 - time/epoch 396.082
+
+running loss: 3.7473950081219956 - time/epoch 395.567
+
+running loss: 3.7795548504346037 - time/epoch 393.5055
+
+running loss: 3.822834076946729 - time/epoch 394.6773
+
+running loss: 3.6902232431385613 - time/epoch 394.2961
+
+running loss: 3.6292690348951786 - time/epoch 395.0644
+
+running loss: 3.596488421366095 - time/epoch 395.7056
+
+running loss: 3.5495490418177216 - time/epoch 394.4921
+
+running loss: 3.4882509066089646 - time/epoch 394.0297
+
+running loss: 3.305957209574033 - time/epoch 396.2019
+
+running loss: 2.827070145846502 - time/epoch 395.4832
+
+running loss: 2.4426461017295105 - time/epoch 395.2357
+
+running loss: 2.311612542905764 - time/epoch 395.5118
+
+running loss: 2.206257486452251 - time/epoch 406.0574
+
+running loss: 2.272430360045063 - time/epoch 399.0861
+
+running loss: 2.1884312553492857 - time/epoch 397.8506
+
+running loss: 2.198753724359486 - time/epoch 399.1909
+
+running loss: 2.124841180566239 - time/epoch 398.7083
+
+running loss: 2.1538126234594546 - time/epoch 397.7765
+
+running loss: 2.121916894499025 - time/epoch 397.6505
+
+running loss: 2.140121631970689 - time/epoch 398.5772
+Epoch 30 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.3393368474202441
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.14322299418167164
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.3393368474202441
+ScoreDice: 0.9060181785548995
+ScoreIoU: 0.83999318590522
+ScoreDice[background]: 0.9902984225414949
+ScoreIoU[background]: 0.9807917397287823
+ScoreDice[hippocampus]: 0.821737934568304
+ScoreIoU[hippocampus]: 0.6991946320816578
+Epoch 30 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.12993906686460832
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.02767052891774654
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.12993906686460832
+ScoreDice: 0.9372009522813961
+ScoreIoU: 0.887995842378556
+ScoreDice[background]: 0.9970827458983262
+ScoreIoU[background]: 0.994182859620788
+ScoreDice[hippocampus]: 0.8773191586644659
+ScoreIoU[hippocampus]: 0.7818088251363241
+Epoch 30 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.49793947983151
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.10782085430500431
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.49793947983151
+ScoreDice: 0.8005424495774782
+ScoreIoU: 0.7221836427165205
+ScoreDice[background]: 0.9950117772455033
+ScoreIoU[background]: 0.9900778552262021
+ScoreDice[hippocampus]: 0.6060731219094526
+ScoreIoU[hippocampus]: 0.45428943020683893
+Finished training on A and B, starting training on C
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-2] False
+AFTER model.unet.decoder.module.decoding_blocks[-2] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.decoding_blocks[-1] False
+AFTER model.unet.decoder.module.decoding_blocks[-1] True
+BEFORE model.unet.decoder.module.classifier False
+AFTER model.unet.decoder.module.classifier True
+BEFORE model.unet.decoder.module.classifier False
+AFTER model.unet.decoder.module.classifier True
+Freezing everything but last 2 layers of segmentor
+Using GPUs: [0]
+
+running loss: 2.386554196061366 - time/epoch 121.5605
+
+running loss: 2.2644689762259858 - time/epoch 129.7556
+
+running loss: 2.2337492514416515 - time/epoch 126.7727
+
+running loss: 2.2216941654919626 - time/epoch 122.1949
+
+running loss: 2.191593735341532 - time/epoch 121.6159
+Traceback (most recent call last):
+  File "/opt/conda/lib/python3.6/multiprocessing/queues.py", line 240, in _feed
+    send_bytes(obj)
+  File "/opt/conda/lib/python3.6/multiprocessing/connection.py", line 200, in send_bytes
+    self._send_bytes(m[offset:offset + size])
+  File "/opt/conda/lib/python3.6/multiprocessing/connection.py", line 404, in _send_bytes
+    self._send(header + buf)
+  File "/opt/conda/lib/python3.6/multiprocessing/connection.py", line 368, in _send
+    n = write(self._handle, buf)
+BrokenPipeError: [Errno 32] Broken pipe
+
+running loss: 2.1946244724243287 - time/epoch 120.3112
+
+running loss: 2.1624138587974455 - time/epoch 120.9219
+
+running loss: 2.1698061018826 - time/epoch 120.1081
+
+running loss: 2.171301075186862 - time/epoch 121.2357
+
+running loss: 2.150007794577762 - time/epoch 121.9551
+
+running loss: 2.120442056560896 - time/epoch 121.6037
+
+running loss: 2.120566044195715 - time/epoch 121.4882
+
+running loss: 2.110795566760211 - time/epoch 121.0796
+
+running loss: 2.122991195237969 - time/epoch 121.6347
+
+running loss: 2.103588108997421 - time/epoch 120.8992
+
+running loss: 2.0979144069778015 - time/epoch 121.3265
+
+running loss: 2.100749320717922 - time/epoch 121.3804
+
+running loss: 2.0797903960444537 - time/epoch 121.3949
+
+running loss: 2.090486122317523 - time/epoch 121.0419
+
+running loss: 2.0837420647837726 - time/epoch 121.4872
+
+running loss: 2.083767308656913 - time/epoch 121.239
+
+running loss: 2.081844551629754 - time/epoch 120.9073
+
+running loss: 2.065871709371468 - time/epoch 120.8855
+
+running loss: 2.0632841572818528 - time/epoch 121.4653
+
+running loss: 2.0637268331421326 - time/epoch 121.8931
+
+running loss: 2.062313368595929 - time/epoch 121.3684
+
+running loss: 2.0594168117796756 - time/epoch 121.4341
+
+running loss: 2.0577231108904837 - time/epoch 121.8042
+
+running loss: 2.0518160070556095 - time/epoch 121.8576
+
+running loss: 2.053611659433737 - time/epoch 121.6292
+Epoch 60 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.5798271930530154
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.2863561802902631
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.5798271930530154
+ScoreDice: 0.8185214295296758
+ScoreIoU: 0.7278842834418834
+ScoreDice[background]: 0.9841672905753782
+ScoreIoU[background]: 0.968841202610498
+ScoreDice[hippocampus]: 0.6528755684839737
+ScoreIoU[hippocampus]: 0.4869273642732689
+Epoch 60 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.2584205710110837
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.04153456250748472
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.2584205710110837
+ScoreDice: 0.8987686493830737
+ScoreIoU: 0.8311262598809878
+ScoreDice[background]: 0.9956350173759028
+ScoreIoU[background]: 0.9913088900338283
+ScoreDice[hippocampus]: 0.8019022813902443
+ScoreIoU[hippocampus]: 0.670943629728147
+Epoch 60 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.3632083776772007
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.06779156646729001
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.3632083776772007
+ScoreDice: 0.8533816211781119
+ScoreIoU: 0.7801608982631565
+ScoreDice[background]: 0.9963074586552005
+ScoreIoU[background]: 0.9926451708545135
+ScoreDice[hippocampus]: 0.7104557837010235
+ScoreIoU[hippocampus]: 0.5676766256718
+Finished training on C

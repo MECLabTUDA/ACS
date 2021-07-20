@@ -1,0 +1,210 @@
+Device name: cuda:0
+Experiment name: kd_1_ne01
+
+DATASET: DecathlonHippocampus with 260 instances
+Mean shape: (1, 35, 49, 35), shape std: (0, 1, 3, 4)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: DryadHippocampus[Modality:T1w][Resolution:Standard] with 50 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+
+DATASET: HarP[Part:All] with 226 instances
+Mean shape: (1, 48, 64, 64), shape std: (0, 0, 0, 0)
+Mask labels: ['background', 'hippocampus']
+
+Dividing dataset
+Repetition k 1 of 1
+Repetition k 1 of 1
+Repetition k 1 of 1
+
+
+Using GPUs: [0]
+{'experiment_name': 'kd_1_ne01', 'nr_runs': 1, 'device': 'cuda:0', 'device_ids': [0], 'n_workers': 2, 'test_ratio': 0.2, 'val_ratio': 0.125, 'input_dim_c': 1, 'input_dim_hw': 256, 'no_resize': False, 'augmentation': 'none', 'n_samples': None, 'sampler': False, 'combination': 1, 'epochs': 60, 'lr': 0.0002, 'lr_2': 0.0001, 'batch_size': 40, 'domain_code_size': 4, 'cross_validation': False, 'd_iter': 1, 'eval_interval': 7, 'save_interval': 1, 'display_interval': 1, 'resume_epoch': None, 'lambda_vae': 5, 'lambda_c_adv': 1, 'lambda_lcr': 0.0001, 'lambda_seg': 5, 'lambda_c_recon': 0, 'lambda_gan': 5, 'lambda_d': 0.1, 'eval': True, 'lambda_eval': False, 'unet_only': False, 'unet_dropout': 0, 'unet_monte_carlo_dropout': 0, 'unet_preactivation': False, 'single_ds': False, 'input_shape': (1, 256, 256), 'class_weights': (0.0, 1.0)}
+
+running loss: 1.3207897446005816 - distill 0.0 - time/epoch 202.8746
+
+running loss: 0.9903770161135761 - distill 0.0 - time/epoch 212.5186
+
+running loss: 0.8064167663670968 - distill 0.0 - time/epoch 212.0463
+
+running loss: 0.7336639739608996 - distill 0.0 - time/epoch 209.8032
+
+running loss: 0.6784447062994547 - distill 0.0 - time/epoch 212.3062
+
+running loss: 0.6394144001502345 - distill 0.0 - time/epoch 211.8733
+
+running loss: 0.6313197784809674 - distill 0.0 - time/epoch 209.4753
+
+running loss: 0.611732785180571 - distill 0.0 - time/epoch 212.396
+
+running loss: 0.5941090408874594 - distill 0.0 - time/epoch 212.6464
+
+running loss: 0.5340695517218631 - distill 0.0 - time/epoch 208.9533
+
+running loss: 0.2949799952065743 - distill 0.0 - time/epoch 212.9561
+
+running loss: 0.22879872717647162 - distill 0.0 - time/epoch 213.4187
+
+running loss: 0.2134250454235696 - distill 0.0 - time/epoch 210.0744
+
+running loss: 0.20395735021149694 - distill 0.0 - time/epoch 212.6158
+
+running loss: 0.23346206580473172 - distill 0.0 - time/epoch 212.9209
+
+running loss: 0.27786071556237874 - distill 0.0 - time/epoch 209.9044
+
+running loss: 0.42437128298848437 - distill 0.0 - time/epoch 218.9426
+
+running loss: 0.3249168748099015 - distill 0.0 - time/epoch 218.9339
+
+running loss: 0.3800739990299847 - distill 0.0 - time/epoch 209.7996
+
+running loss: 0.5091836713569392 - distill 0.0 - time/epoch 213.3839
+
+running loss: 0.46296152366091303 - distill 0.0 - time/epoch 213.7687
+
+running loss: 0.45742566764786624 - distill 0.0 - time/epoch 209.1085
+
+running loss: 0.32340191115044814 - distill 0.0 - time/epoch 182.6939
+
+running loss: 0.25167540818506823 - distill 0.0 - time/epoch 146.5201
+
+running loss: 0.3330861985624952 - distill 0.0 - time/epoch 223.8642
+
+running loss: 0.2644060479729 - distill 0.0 - time/epoch 226.0204
+
+running loss: 0.2917287583892562 - distill 0.0 - time/epoch 222.1387
+
+running loss: 0.5037422620101971 - distill 0.0 - time/epoch 225.8173
+
+running loss: 0.5609849958280146 - distill 0.0 - time/epoch 225.1343
+
+running loss: 0.4764240284760793 - distill 0.0 - time/epoch 224.8829
+Epoch 30 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 1.461339977345422
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 1.2571796869107226
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 1.461339977345422
+ScoreDice: 0.5605004031485796
+ScoreIoU: 0.5142460652821377
+ScoreDice[background]: 0.9735312953070512
+ScoreIoU[background]: 0.9484536927518602
+ScoreDice[hippocampus]: 0.14746951099010816
+ScoreIoU[hippocampus]: 0.08003843781241497
+Epoch 30 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.8818291010597022
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.25632412798625087
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.8818291010597022
+ScoreDice: 0.7032810344024517
+ScoreIoU: 0.6226577562677076
+ScoreDice[background]: 0.990004690842928
+ScoreIoU[background]: 0.9802083547394573
+ScoreDice[hippocampus]: 0.41655737796197545
+ScoreIoU[hippocampus]: 0.265107157795958
+Epoch 30 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.6469403202066567
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.1267731299574775
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.6469403202066567
+ScoreDice: 0.7711188927831393
+ScoreIoU: 0.6849993360602424
+ScoreDice[background]: 0.9946658445667368
+ScoreIoU[background]: 0.9893903818531691
+ScoreDice[hippocampus]: 0.5475719409995419
+ScoreIoU[hippocampus]: 0.38060829026731585
+Finished training on A and B, starting training on C
+Freezing everything but last 2 layers of segmentor
+Using GPUs: [0]
+{'experiment_name': 'kd_1_ne01', 'nr_runs': 1, 'device': 'cuda:0', 'device_ids': [0], 'n_workers': 2, 'test_ratio': 0.2, 'val_ratio': 0.125, 'input_dim_c': 1, 'input_dim_hw': 256, 'no_resize': False, 'augmentation': 'none', 'n_samples': None, 'sampler': False, 'combination': 1, 'epochs': 60, 'lr': 0.0002, 'lr_2': 0.0001, 'batch_size': 40, 'domain_code_size': 4, 'cross_validation': False, 'd_iter': 1, 'eval_interval': 7, 'save_interval': 1, 'display_interval': 1, 'resume_epoch': None, 'lambda_vae': 5, 'lambda_c_adv': 1, 'lambda_lcr': 0.0001, 'lambda_seg': 5, 'lambda_c_recon': 0, 'lambda_gan': 5, 'lambda_d': 0.1, 'eval': True, 'lambda_eval': False, 'unet_only': False, 'unet_dropout': 0, 'unet_monte_carlo_dropout': 0, 'unet_preactivation': False, 'single_ds': False, 'input_shape': (1, 256, 256), 'class_weights': (0.0, 1.0)}
+
+running loss: 0.495566155229296 - distill 1.1776114021028792 - time/epoch 34.8595
+
+running loss: 0.4563303823981966 - distill 1.3074279235942023 - time/epoch 32.1409
+
+running loss: 0.44509307348302435 - distill 1.339173557502883 - time/epoch 34.7686
+
+running loss: 0.428625618240663 - distill 1.3683236890605517 - time/epoch 34.4817
+
+running loss: 0.42347838463527815 - distill 1.3955358820302146 - time/epoch 31.5849
+
+running loss: 0.42010791280439924 - distill 1.3750616194946426 - time/epoch 34.9424
+
+running loss: 0.416426314839295 - distill 1.3821319820625442 - time/epoch 35.023
+
+running loss: 0.4141732028552464 - distill 1.4026668210114752 - time/epoch 31.3394
+
+running loss: 0.4136693945952824 - distill 1.3883105282272612 - time/epoch 35.0272
+
+running loss: 0.4110464278076376 - distill 1.3998719155788422 - time/epoch 31.7086
+
+running loss: 0.41067387110420633 - distill 1.4138168064611298 - time/epoch 34.7637
+
+running loss: 0.4066253751516342 - distill 1.4195017729486739 - time/epoch 34.856
+
+running loss: 0.40460523111479624 - distill 1.4109579196998052 - time/epoch 31.5975
+
+running loss: 0.4021269221390997 - distill 1.4080327429941721 - time/epoch 34.6142
+
+running loss: 0.40070207470229696 - distill 1.4081536872046334 - time/epoch 33.729
+
+running loss: 0.39822705728667124 - distill 1.4008638294679778 - time/epoch 35.0982
+
+running loss: 0.3985285817512444 - distill 1.4039629474282265 - time/epoch 35.0273
+
+running loss: 0.3974440097808838 - distill 1.4160516453640801 - time/epoch 31.4941
+
+running loss: 0.39649487499679836 - distill 1.418350797678743 - time/epoch 34.4228
+
+running loss: 0.3968608554984842 - distill 1.4076942556670733 - time/epoch 35.0604
+
+running loss: 0.39346899650990963 - distill 1.4191162990672248 - time/epoch 31.4926
+
+running loss: 0.39481963802661213 - distill 1.422832429409027 - time/epoch 35.5576
+
+running loss: 0.3949162097913878 - distill 1.4361642066921507 - time/epoch 30.6957
+
+running loss: 0.3936473759157317 - distill 1.4182019350784165 - time/epoch 34.0147
+
+running loss: 0.39080299862793516 - distill 1.4216689041682653 - time/epoch 34.0749
+
+running loss: 0.3893546366265842 - distill 1.4079534730740957 - time/epoch 30.5982
+
+running loss: 0.39315430766769816 - distill 1.4365884363651276 - time/epoch 32.8711
+
+running loss: 0.3880657133247171 - distill 1.4149341476815087 - time/epoch 33.0207
+
+running loss: 0.38813061480011257 - distill 1.4098320113761085 - time/epoch 31.6584
+
+running loss: 0.3878516506935869 - distill 1.4085500623498644 - time/epoch 34.3171
+Epoch 60 dataset ('DecathlonHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 1.2328876074013417
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 1.071849979264519
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 1.2328876074013417
+ScoreDice: 0.5727795627421718
+ScoreIoU: 0.5217505054387032
+ScoreDice[background]: 0.9738456021440274
+ScoreIoU[background]: 0.9490522482491529
+ScoreDice[hippocampus]: 0.17171352334031614
+ScoreIoU[hippocampus]: 0.09444876262825327
+Epoch 60 dataset ('DryadHippocampus', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.6834482526639476
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.06256927546803723
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.6834482526639476
+ScoreDice: 0.7705667653601036
+ScoreIoU: 0.6828872954339753
+ScoreDice[background]: 0.9920111787465326
+ScoreIoU[background]: 0.9841508285323112
+ScoreDice[hippocampus]: 0.5491223519736746
+ScoreIoU[hippocampus]: 0.3816237623356395
+Epoch 60 dataset ('HarP', 'test')
+LossClassWeighted[loss=LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE]; weights=(0.0, 1.0)]: 0.7676939332159236
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][0]: 0.09196146683074169
+LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCE][1]: 0.7676939332159236
+ScoreDice: 0.7831175972318689
+ScoreIoU: 0.6975069617023365
+ScoreDice[background]: 0.9949803941965621
+ScoreIoU[background]: 0.9900126639870291
+ScoreDice[hippocampus]: 0.571254800267176
+ScoreIoU[hippocampus]: 0.40500125941764387
+Finished training on C
