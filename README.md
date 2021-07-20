@@ -5,7 +5,7 @@ Deep learning for medical imaging suffers from temporal and privacy-related rest
 
 For more information please refer to our [paper](https://arxiv.org/abs/2107.08751).
 
-## Architecture
+## ACS Architecture
 ![alt text](https://github.com/memmelma/continual_adversarial_segmenter/raw/master/architecture.png)
 
 ## Qualitative Results
