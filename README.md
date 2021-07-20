@@ -13,13 +13,13 @@ For more information please refer to our [paper](https://arxiv.org/abs/2107.0875
 Legend: **VP MRI** (original), **GT** (groud truth segmentation), **ACS** (segmentation), **GAN O/P** (output of GAN generator)
 
 ## Setup
-This repository builds on [medical_pytorch](https://github.com/camgbus/medical_pytorch) and [torchio](https://github.com/fepegar/torchio). Please install this repository as explained in [medical_pytorch](https://github.com/camgbus/medical_pytorch). We provide an implementation of the [continual adversarial segmenter (CAS)](https://arxiv.org/abs/2107.08751), and the baselines [memory aware synapses (MAS)](https://arxiv.org/abs/2005.00079), and [knowledge distillation (KD)](https://arxiv.org/abs/1907.13372).
+This repository builds on [medical_pytorch](https://github.com/camgbus/medical_pytorch) and [torchio](https://github.com/fepegar/torchio). Please install this repository as explained in [medical_pytorch](https://github.com/camgbus/medical_pytorch). We provide an implementation of the [adversarial continual segmenter (ACS)](https://arxiv.org/abs/2107.08751), and the baselines [memory aware synapses (MAS)](https://arxiv.org/abs/2005.00079), and [knowledge distillation (KD)](https://arxiv.org/abs/1907.13372).
 
 Our core implementation consists of the following structure:
 ```
 mp
 ├── agents
-|   ├── CASAgent
+|   ├── ACSAgent
 |   ├── KDAgent
 |   ├── MASAgent
 |   ├── UNETAgent
@@ -27,7 +27,7 @@ mp
 |   ├── PytorchSeg2DDatasetDomain
 ├── models
 |   ├── continual
-|       ├── CAS
+|       ├── ACS
 |       ├── MAS
 |       ├── KD
 ├── *_train.py
