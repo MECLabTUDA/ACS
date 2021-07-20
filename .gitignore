@@ -116,8 +116,3 @@ venv.bak/
 
 # dataset files
 dataset
-
-# logs
-*log
-log*
-dataset_imgs
