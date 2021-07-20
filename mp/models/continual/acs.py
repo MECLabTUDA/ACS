@@ -3,7 +3,7 @@ from mp.models.continual.model_utils import *
 from torch.autograd import Variable
 import torch.optim as optim
 
-class CAS(Model):
+class ACS(Model):
     r""" Continual Adversarial Segmenter as proposed in Adversarial Continual Learning for Multi-Domain Segmentation 
     by Memmel et. al, 2021
     """
@@ -27,7 +27,7 @@ class CAS(Model):
             unet_monte_carlo_dropout (float): monte carlo dropout probability for the U-Net
             unet_preactivation (boolean): whether to use U-Net pre-activations
         """
-        super(CAS, self).__init__()
+        super(ACS, self).__init__()
 
         self.input_shape = input_shape
         self.latent_scaler_sample_size = latent_scaler_sample_size
