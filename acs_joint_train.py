@@ -1,6 +1,6 @@
 
 # ------------------------------------------------------------------------------
-# Code to train CAS on all datasets simultaneously
+# Code to train ACS on all datasets simultaneously
 # ------------------------------------------------------------------------------
 
 import os

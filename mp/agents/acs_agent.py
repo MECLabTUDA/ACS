@@ -17,7 +17,7 @@ from mp.utils.load_restore import pkl_dump, pkl_load
 
 
 class ACSAgent(SegmentationAgent):
-    r"""Extension of SegmentationAgent to support CAS.
+    r"""Extension of SegmentationAgent to support ACS.
     """
     def __init__(self, *args, **kwargs):
         if 'metrics' not in kwargs:
