@@ -14,8 +14,8 @@ from mp.visualization.visualize_imgs import plot_3d_segmentation
 from mp.utils.load_restore import pkl_dump, pkl_load
 from mp.eval.inference.predict import softmax
 
-class DistillAgent(SegmentationAgent):
-    r"""Extension of Segmentatio Agent to support Knowledge Distillation
+class KDAgent(SegmentationAgent):
+    r"""Extension of Segmentation Agent to support Knowledge Distillation
     as porposed in Incremental learning techniques for semantic segmentation by Michieli, U., Zanuttigh, P., 2019"""
     def __init__(self, *args, **kwargs):
         if 'metrics' not in kwargs:
@@ -51,11 +51,6 @@ class DistillAgent(SegmentationAgent):
         """
 
         self.agent_state_dict['epoch'] = init_epoch
-
-        # Move model to GPUs
-        if len(device_ids) > 1:
-            self.model.set_data_parallel(device_ids)
-        print('Using GPUs:', device_ids)
 
         for epoch in range(init_epoch, nr_epochs):
             self.agent_state_dict['epoch'] = epoch

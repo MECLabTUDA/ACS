@@ -1,10 +1,8 @@
 
 # ------------------------------------------------------------------------------
-# The same code as in example_training.ipynp but as a python module instead of 
-# jupyter notebook. See that file for more detailed explainations.
+# Code to train KD
 # ------------------------------------------------------------------------------
 
-# Imports
 import os
 import sys
 from args import parse_args_as_dict
@@ -12,40 +10,27 @@ from mp.utils.helper_functions import seed_all
 
 import torch
 torch.set_num_threads(6)
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from torch.utils.data.sampler import WeightedRandomSampler
 
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
-
-import mp.visualization.visualize_imgs as vis
-from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset, PytorchSeg2DDatasetDomain
-from mp.models.segmentation.unet_milesial import UNet
-from mp.models.segmentation.unet_fepegar import UNet2D
+from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
-from mp.agents.disentangler_agent import DisentanglerAgent
-from mp.agents.whatever_agent import WhateverAgent
-from mp.agents.segmentation_agent import SegmentationAgent
+from mp.agents.kd_agent import KDAgent
 from mp.eval.result import Result
-from mp.utils.load_restore import nifty_dump
 from mp.utils.tensorboard import create_writer
 
-from mp.models.disentangler.cmfd import CMFD
-
-# torch.autograd.set_detect_anomaly(True)
+from mp.models.continual.kd import KD
 
 # Get configuration from arguments
 config = parse_args_as_dict(sys.argv[1:])
 seed_all(42)
 
 config['class_weights'] = (0., 1.)
-
-print('config', config)
 
 # Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
@@ -81,9 +66,6 @@ elif config['combination'] == 2:
     ds_b = ('DryadHippocampus', 'train')
     ds_a = ('HarP', 'train')
 
-# ds_test = [('DecathlonHippocampus', 'test'), ('DryadHippocampus', 'test'), ('HarP', 'test')]
-# ds_val = [('DecathlonHippocampus', 'val'), ('DryadHippocampus', 'val'), ('HarP', 'val')]
-
 # Create data splits for each repetition
 exp.set_data_splits(data)
 
@@ -91,7 +73,6 @@ exp.set_data_splits(data)
 for run_ix in range(config['nr_runs']):
     exp_run = exp.get_run(run_ix=0, reload_exp_run=(config['resume_epoch'] is not None))
 
-    # Bring data to Pytorch format and add domain_code
     datasets = dict()
     for idx, item in enumerate(data.datasets.items()):
         ds_name, ds = item
@@ -99,9 +80,9 @@ for run_ix in range(config['nr_runs']):
             data_ixs = data_ixs[:config['n_samples']]
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
-                datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
+                datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
-                    resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
+                    resize=(not config['no_resize']))
 
     dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
     train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
@@ -114,10 +95,17 @@ for run_ix in range(config['nr_runs']):
                 drop += [key]
         for d in drop:
             datasets.pop(d)
-    
-    model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
+    elif config['lambda_eval']:
+        drop = []
+        for key in datasets.keys():
+            if 'train' in key or 'test' in key:
+                drop += [key]
+        for d in drop:
+            datasets.pop(d)
+            
+    model = KD(input_shape=config['input_shape'], nr_labels=nr_labels,
                     unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
-
+    
     model.to(config['device'])
   
     # Define loss and optimizer
@@ -130,21 +118,22 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')
 
-    agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])
+    agent = KDAgent(model=model, label_names=label_names, device=config['device'])
     agent.summary_writer = create_writer(os.path.join(exp_run.paths['states'], '..'), 0)
-    
+
+
     init_epoch = 0
     nr_epochs = config['epochs'] // 2
+
+    config['continual'] = False
 
     # Resume training
     if config['resume_epoch'] is not None:
         agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
         init_epoch = agent.agent_state_dict['epoch'] + 1
 
-    # Train on A and B
+    # Training epochs 0 - 30
     if init_epoch < config['epochs'] / 2:
-    # if init_epoch < config['epochs'] * 2/3:
-        config['continual'] = False
         agent.train(results, loss_f, train_dataloader_0, train_dataloader_1, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],
@@ -162,43 +151,13 @@ for run_ix in range(config['nr_runs']):
         agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
         init_epoch = agent.agent_state_dict['epoch'] + 1
     
-    # Train on C
+    # Training epochs 30 - 60
     if init_epoch >= config['epochs'] / 2:
 
-        config['continual'] = True
-        for param in model.parameters():
-            param.requires_grad = False
-       
-        if len(config['device_ids']) > 1:
-            for param in model.unet.decoder.module.decoding_blocks[-2].parameters():
-                print('BEFORE model.unet.decoder.module.decoding_blocks[-2]', param.requires_grad)
-                param.requires_grad = True
-                print('AFTER model.unet.decoder.module.decoding_blocks[-2]', param.requires_grad)
-            for param in model.unet.decoder.module.decoding_blocks[-1].parameters():
-                print('BEFORE model.unet.decoder.module.decoding_blocks[-1]', param.requires_grad)
-                param.requires_grad = True
-                print('AFTER model.unet.decoder.module.decoding_blocks[-1]', param.requires_grad)
-            for param in model.unet.classifier.parameters():
-                print('BEFORE model.unet.decoder.module.classifier', param.requires_grad)
-                param.requires_grad = True
-                print('AFTER model.unet.decoder.module.classifier', param.requires_grad)
-        else:
-            for param in model.unet.decoder.decoding_blocks[-2].parameters():
-                param.requires_grad = True
-            for param in model.unet.decoder.decoding_blocks[-1].parameters():
-                param.requires_grad = True
-            for param in model.unet.classifier.parameters():
-                param.requires_grad = True
-        
-        # model.unet_optim = optim.Adam(model.unet.parameters(), lr=config['lr'] / 3)
-        # model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
-        
-        # Set optimizers
         model.set_optimizers(optim.Adam, lr=config['lr_2'])
         config['continual'] = True
         model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
-
-        print('Freezing everything but last 2 layers of segmentor')
+        
         agent.train(results, loss_f, train_dataloader_1, train_dataloader_0, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],

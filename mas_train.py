@@ -1,7 +1,6 @@
 
 # ------------------------------------------------------------------------------
-# The same code as in example_training.ipynp but as a python module instead of 
-# jupyter notebook. See that file for more detailed explainations.
+# Code to train MAS
 # ------------------------------------------------------------------------------
 
 # Imports
@@ -12,31 +11,20 @@ from mp.utils.helper_functions import seed_all
 
 import torch
 torch.set_num_threads(6)
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from torch.utils.data.sampler import WeightedRandomSampler
 
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
-
-import mp.visualization.visualize_imgs as vis
-from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset, PytorchSeg2DDatasetDomain
-from mp.models.segmentation.unet_milesial import UNet
-from mp.models.segmentation.unet_fepegar import UNet2D
+from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset 
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.mas_agent import MASAgent
-from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
-from mp.utils.load_restore import nifty_dump
 from mp.utils.tensorboard import create_writer
-
-from mp.models.mas.mas import MAS
-
-# torch.autograd.set_detect_anomaly(True)
+from mp.models.continual.mas import MAS
 
 # Get configuration from arguments
 config = parse_args_as_dict(sys.argv[1:])
@@ -77,9 +65,6 @@ elif config['combination'] == 2:
     ds_c = ('DecathlonHippocampus', 'train')
     ds_b = ('DryadHippocampus', 'train')
     ds_a = ('HarP', 'train')
-
-# ds_test = [('DecathlonHippocampus', 'test'), ('DryadHippocampus', 'test'), ('HarP', 'test')]
-# ds_val = [('DecathlonHippocampus', 'val'), ('DryadHippocampus', 'val'), ('HarP', 'val')]
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -167,28 +152,14 @@ for run_ix in range(config['nr_runs']):
         agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
         init_epoch = agent.agent_state_dict['epoch'] + 1
     
-    # Train on C
+    # Training epochs 30 - 60
     if init_epoch >= config['epochs'] / 2:
-        
-        if config['unet_only']:
-            for param in model.parameters():
-                param.requires_grad = False
-            for param in model.unet.decoder.decoding_blocks[-2].parameters():
-                param.requires_grad = True
-            for param in model.unet.decoder.decoding_blocks[-1].parameters():
-                param.requires_grad = True
-            for param in model.unet.classifier.parameters():
-                param.requires_grad = True
 
-        # model.unet_optim = optim.Adam(model.unet.parameters(), lr=config['lr'] / 3)
-        # model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
-        
         # Set optimizers
         model.set_optimizers(optim.Adam, lr=config['lr_2'])
         config['continual'] = True
         model.unet_scheduler = torch.optim.lr_scheduler.StepLR(model.unet_optim, (nr_epochs-init_epoch), gamma=0.1, last_epoch=-1)
         
-        print('Freezing everything but last 2 layers of segmentor')
         agent.train(results, loss_f, train_dataloader_1, train_dataloader_0, config,
             init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
             eval_datasets=datasets, eval_interval=config['eval_interval'],

@@ -2,11 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mp.models.segmentation.unet_fepegar import UNet2D
-from mp.models.segmentation.model_utils import ConvolutionalBlock
 
-### MODULES ###
+### UNet Wrapper ###
 class UNet2D_dis(UNet2D):
-    r"""Adaption of UNet2D to access encoder and decoder seperately.
+    r"""Wrapper for UNet2D to access encoder and decoder seperately.
     """
     def __init__(self, *args, **kwargs):
         super(UNet2D_dis, self).__init__(*args, **kwargs)
@@ -22,6 +21,7 @@ class UNet2D_dis(UNet2D):
             x = self.monte_carlo_layer(x)
         return self.classifier(x)
 
+### MODULES ###
 class EncoderStyle(nn.Module):
     r"""Style Encoder (VAE).
     """
@@ -37,7 +37,6 @@ class EncoderStyle(nn.Module):
         layers += [ConvPoolBlock(in_channels=192, out_channels=192, pooling=False)]
         layers += [ConvPoolBlock(in_channels=192, out_channels=256, pooling=True)]
 
-        # TODO: GlobalPool2d
         global_pool = [nn.LeakyReLU(), nn.AdaptiveMaxPool2d(output_size=(3,3))]
         self.global_pool = nn.Sequential(*global_pool)
 
@@ -79,17 +78,6 @@ class Generator(nn.Module):
     def __init__(self, in_channels, out_channels, domain_code_size):
         super(Generator, self).__init__()
 
-        # ORIGINAL
-        # layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=0, domain_code_size=domain_code_size)]
-        # for i in range(0,3):
-        #     layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=0, domain_code_size=domain_code_size)]
-
-        # layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=2, stride=2), nn.ReLU()]
-        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2), nn.ReLU()]
-        # # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Tanh()]
-        # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=2, stride=2), nn.Sigmoid()]
-
-        # ALTERNATIVE w/ more filters
         layers_BCIN = [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=0, stride=1, padding=1, domain_code_size=domain_code_size)]
         for i in range(0,4):
             layers_BCIN += [ResBlockBCIN(in_channels=in_channels, out_channels=in_channels, layer_id=i+1, stride=1, padding=1, domain_code_size=domain_code_size)]
@@ -98,13 +86,6 @@ class Generator(nn.Module):
         layers += [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
         layers += [nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
         layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
-
-        # ALTERNATIVE w/ less filters
-        # layers = [nn.ConvTranspose2d(in_channels=in_channels, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
-        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
-        # layers += [nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
-        # layers += [nn.ConvTranspose2d(in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1, output_padding=1), nn.ReLU()]
-
         layers += [nn.ConvTranspose2d(in_channels=64, out_channels=out_channels, kernel_size=7, stride=1, padding=3), nn.Sigmoid()]
         
 
@@ -116,35 +97,11 @@ class Generator(nn.Module):
         x = self.layers(content)
         return x
 
-class DiscriminatorContent(nn.Module):
-    r"""Content Discriminator.
-    """
-    def __init__(self, in_channels, max_channels=512, kernel_size=4, stride=2, domain_code_size=3):
-        super(DiscriminatorContent, self).__init__()
-
-        layers = [ConvBlock(in_channels=in_channels, out_channels=64, kernel_size=kernel_size, stride=stride, normalization='None')]
-        layers += [ConvBlock(in_channels=64, out_channels=128, kernel_size=kernel_size, stride=stride, normalization='None')]
-        layers += [ConvBlock(in_channels=128, out_channels=max_channels//2, kernel_size=kernel_size, stride=stride, normalization='None')]
-        layers += [ConvBlock(in_channels=max_channels//2, out_channels=max_channels, kernel_size=kernel_size, stride=1, normalization='None')]
-        layers += [ConvBlock(in_channels=max_channels, out_channels=1, kernel_size=kernel_size, stride=1, normalization='None')]
-        self.layers = nn.Sequential(*layers)
-        
-        # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=6**2, out_features=domain_code_size) # 21**2
-        self.activation = nn.Softmax(dim=1)
-
-    def forward(self, x):
-        x = self.layers(x)
-        x = x.view(x.shape[0],-1)
-        x = self.linear(x)
-        # x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
-        return x
-
-class DiscriminatorStructureMulti(nn.Module):
+class DiscriminatorDomain(nn.Module):
     r"""Domain Discriminator.
     """
     def __init__(self, in_channels, domain_code_size, max_channels=512, kernel_size=4, stride=2):
-        super(DiscriminatorStructureMulti, self).__init__()
+        super(DiscriminatorDomain, self).__init__()
 
         layers = [ConvBlockBCIN(in_channels=in_channels, out_channels=64, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
         layers += [ConvBlockBCIN(in_channels=64, out_channels=128, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size)]
@@ -153,22 +110,20 @@ class DiscriminatorStructureMulti(nn.Module):
         layers += [ConvBlockBCIN(in_channels=max_channels, out_channels=1, kernel_size=kernel_size, stride=stride, domain_code_size=domain_code_size, normalization='None')]
         self.layers = MultiInSequential(*layers)
 
-        # added TODO look up PatchGAN
-        self.linear = nn.Linear(in_features=7**2, out_features=1) # 24**2
+        self.linear = nn.Linear(in_features=7**2, out_features=1)
         self.activation = nn.Sigmoid()
     
     def forward(self, x, domain_code):
         x, domain_code = self.layers(x, domain_code)
         x = x.view(x.shape[0],-1)
         x = self.linear(x)
-        # x = self.activation(x).clamp(min=1e-08, max=1. - 1e-08)
         return x
 
-class DiscriminatorUnet(nn.Module):
-    r"""Unet-style Domain Discriminator.
+class DiscriminatorContent(nn.Module):
+    r"""Unet-style Content Discriminator.
     """
     def __init__(self, in_channels, domain_code_size, max_channels=512, kernel_size=3, stride=2):
-        super(DiscriminatorUnet, self).__init__()
+        super(DiscriminatorContent, self).__init__()
 
         self.in_channels = 16
         self.in_channels_max = 128
@@ -194,9 +149,6 @@ class DiscriminatorUnet(nn.Module):
         
         self.dense = nn.Linear(in_features = 8**2, out_features=domain_code_size)
         self.softmax = nn.Softmax(dim=1)
-
-         # BCIN(out_channels, domain_code_size) # not learnable
-        # self.activation = nn.ReLU()
 
     def forward(self, skip_connections, content_x):
         out = self.conv_0(skip_connections[0])
@@ -333,9 +285,6 @@ class ResBlockBCIN(nn.Module):
         self.conv0 = nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         self.conv1 = nn.ConvTranspose2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
 
-        # self.conv0 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
-        # self.conv1 = nn.Conv2d(in_channels=out_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
-
         self.norm0 = BCIN(num_features=out_channels, domain_code_size=domain_code_size, affine=True) # learnable
         self.norm1 = BCIN(num_features=out_channels, domain_code_size=domain_code_size, affine=True) # learnable
         self.activation = activation()
@@ -371,12 +320,10 @@ class ResBlockBCIN(nn.Module):
         return skip_connection
 
 ### NORMALIZATION ###
-
 class BCIN(nn.Module):
     r"""Central Biasing Instance Normalization
     https://arxiv.org/abs/1806.10050
     """
-    # TODO: investigate BCIN and remove instance_norm=True
     def __init__(self, num_features, domain_code_size, affine=True, instance_norm=False, batch_norm=False):
         super(BCIN, self).__init__()
         self.W = nn.Parameter(torch.rand(domain_code_size), requires_grad=affine)

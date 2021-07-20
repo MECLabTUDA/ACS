@@ -1,47 +1,37 @@
 
 # ------------------------------------------------------------------------------
-# The same code as in example_training.ipynp but as a python module instead of 
-# jupyter notebook. See that file for more detailed explainations.
+# Code to train CAS on all datasets simultaneously
 # ------------------------------------------------------------------------------
 
-# Imports
+import os
 import sys
 from args import parse_args_as_dict
-from mp.utils.helper_functions import seed_all
 
 import torch
 torch.set_num_threads(6)
-import torch.nn as nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
+
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
-
-import mp.visualization.visualize_imgs as vis
-from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset, PytorchSeg2DDatasetDomain
-from mp.models.segmentation.unet_milesial import UNet
-from mp.models.segmentation.unet_fepegar import UNet2D
+from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDatasetDomain
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
-from mp.agents.disentangler_agent import DisentanglerAgent
-from mp.agents.whatever_agent import WhateverAgent
-from mp.agents.segmentation_agent import SegmentationAgent
+from mp.agents.cas_agent import CAS
 from mp.eval.result import Result
-from mp.utils.load_restore import nifty_dump
 from mp.utils.tensorboard import create_writer
-
-from mp.models.disentangler.cmfd import CMFD
-
-# torch.autograd.set_detect_anomaly(True)
+from mp.utils.helper_functions import seed_all
+from mp.models.continual.cas import CAS
 
 # Get configuration from arguments
 config = parse_args_as_dict(sys.argv[1:])
 seed_all(42)
 
-config['class_weights'] = (0., 1.) # -> inverse of label ratios -> try: (0.3, 0.7)
-# config['class_weights'] = (0.8, 0.2)
+config['class_weights'] = (0., 1.)
+
+print('config', config)
 
 # Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=(config['resume_epoch'] is not None))
@@ -64,9 +54,18 @@ data.add_dataset(dataset_domain_c)
 nr_labels = data.nr_labels
 label_names = data.label_names
 
-ds_a = ('DecathlonHippocampus', 'train')
-ds_b = ('DryadHippocampus', 'train')
-ds_c = ('HarP', 'train')
+if config['combination'] == 0:
+    ds_a = ('DecathlonHippocampus', 'train')
+    ds_b = ('DryadHippocampus', 'train')
+    ds_c = ('HarP', 'train')
+elif config['combination'] == 1:
+    ds_a = ('DecathlonHippocampus', 'train')
+    ds_c = ('DryadHippocampus', 'train')
+    ds_b = ('HarP', 'train')
+elif config['combination'] == 2:
+    ds_c = ('DecathlonHippocampus', 'train')
+    ds_b = ('DryadHippocampus', 'train')
+    ds_a = ('HarP', 'train')
 
 # Create data splits for each repetition
 exp.set_data_splits(data)
@@ -83,28 +82,26 @@ for run_ix in range(config['nr_runs']):
             data_ixs = data_ixs[:config['n_samples']]
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
-                # TODO
                 datasets[(ds_name, split)] = PytorchSeg2DDatasetDomain(ds, 
                     ix_lst=data_ixs, size=config['input_shape']  , aug_key=aug, 
                     resize=(not config['no_resize']), domain_code=idx, domain_code_size=config['domain_code_size'])
-                # datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
-                #     ix_lst=data_ixs, size=config['input_shape'], aug_key=aug, 
-                #     resize=(not config['no_resize']))
 
-    # Combine datasets
-    if config['single_ds']:
-        dataset = datasets[(ds_a)]
-    else:
-        dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)]))
-    train_dataloader = DataLoader(dataset, batch_size=config['batch_size'], shuffle=True, drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-   
-    test_dataloader = DataLoader(datasets[(ds_c)], batch_size=config['batch_size'], shuffle=True, drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
-
-    model = CMFD(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
-                    unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
+    dataset = torch.utils.data.ConcatDataset((datasets[(ds_a)], datasets[(ds_b)], datasets[(ds_c)]))
+    train_dataloader_0 = DataLoader(dataset, batch_size=config['batch_size'], drop_last=False, pin_memory=True, num_workers=len(config['device_ids'])*config['n_workers'])
     
-    model.to(config['device'])
+    if config['eval']:
+        drop = []
+        for key in datasets.keys():
+            if 'train' in key or 'val' in key:
+                drop += [key]
+        for d in drop:
+            datasets.pop(d)
+    
+    model = CAS(input_shape=config['input_shape'], nr_labels=nr_labels, domain_code_size=config['domain_code_size'], latent_scaler_sample_size=250,
+                    unet_dropout=config['unet_dropout'], unet_monte_carlo_dropout=config['unet_monte_carlo_dropout'], unet_preactivation=config['unet_preactivation'])
 
+    model.to(config['device'])
+  
     # Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=config['device'])
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], device=config['device'])
@@ -115,27 +112,28 @@ for run_ix in range(config['nr_runs']):
     # Train model
     results = Result(name='training_trajectory')
 
-    agent = WhateverAgent(model=model, label_names=label_names, device=config['device'])#, summary_writer=writer)
+    agent = CASAgent(model=model, label_names=label_names, device=config['device'])
+    agent.summary_writer = create_writer(os.path.join(exp_run.paths['states'], '..'), 0)
+    
+    init_epoch = 0
+    nr_epochs = config['epochs']
 
-    agent.train(results, loss_f, train_dataloader, test_dataloader, config,
-        init_epoch=0, nr_epochs=config['epochs'], run_loss_print_interval=1,
+    # Resume training
+    if config['resume_epoch'] is not None:
+        agent.restore_state(exp_run.paths['states'], config['resume_epoch'])
+        init_epoch = agent.agent_state_dict['epoch'] + 1
+
+    config['continual'] = False
+
+    # Joint Training
+    agent.train(results, loss_f, train_dataloader_0, train_dataloader_0, config,
+        init_epoch=init_epoch, nr_epochs=nr_epochs, run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=config['eval_interval'],
         save_path=exp_run.paths['states'], save_interval=config['save_interval'],
         display_interval=config['display_interval'],
         resume_epoch=config['resume_epoch'], device_ids=config['device_ids'])
 
+    print('Finished training on A and B and C')
+
     # Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_LossBCEWithLogits', 'Mean_LossDice[smooth=1.0]', 'Mean_LossCombined[1.0xLossDice[smooth=1.0]+1.0xLossBCEWithLogits]'])
-    test_ds_key = '_'.join(test_ds_c)
-    metric = 'Mean_LossDice[smooth=1.0]'
-    
-    last_dice = results.get_epoch_metric(
-        results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    print('Last Dice score for hippocampus class: {}'.format(last_dice))
-
-    import mp.visualization.visualize_imgs as vis
-    # Visualize result for the first subject in the test dataset
-    # subject_ix = 0
-    # subject = datasets[test_ds].instances[subject_ix].get_subject()
-    # pred = datasets[test_ds].predictor.get_subject_prediction(agent, subject_ix)
-    # vis.plot_3d_subject_pred(subject, pred)

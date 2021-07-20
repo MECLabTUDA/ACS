@@ -138,16 +138,16 @@ class CASAgent(SegmentationAgent):
 
                 x, y, domain_code = self.get_inputs_targets(data, eval=False)
         
-                self.model.zero_grad_optim_vae_gen()
+                self.model.zero_grad_optim_enc_misc()
                 loss_vae_gen, acc = self.update_encoder_misc(x, y, domain_code, acc, config, loss_f)
-                self.model.step_optim_vae_gen()
+                self.model.step_optim_enc_misc()
                 
 
                 for _ in range(config['d_iter']):
                     
-                    self.model.zero_grad_optim_dis_seg()
-                    loss_dis_seg, acc = self.update_decoder(x, y, domain_code, acc, config, loss_f)
-                    self.model.step_optim_dis_seg()
+                    self.model.zero_grad_optim_disc()
+                    loss_dis_seg, acc = self.update_discriminator(x, y, domain_code, acc, config, loss_f)
+                    self.model.step_optim_disc()
 
                 loss_comb = loss_vae_gen + loss_dis_seg
                 acc.add('loss', float(loss_comb.detach().cpu()), count=len(x))
@@ -416,8 +416,8 @@ class CASAgent(SegmentationAgent):
 
         return loss_enc_misc, acc
 
-    def update_decoder(self, x, y, domain_code, acc, config, loss_f):
-        r"""Backward pass on GAN (Decoder), and content adversarial (Decoder) losses
+    def update_discriminator(self, x, y, domain_code, acc, config, loss_f):
+        r"""Backward pass on GAN (Discriminator), and content adversarial (Discriminator) losses
 
         Args:
             x (torch.Tensor): input batch
@@ -428,11 +428,11 @@ class CASAgent(SegmentationAgent):
             loss_f (mp.eval.losses.loss_abstract.LossAbstract): loss function for the segmenter
         
         Returns:
-            loss_dec (torch.Tensor): decoder loss
+            loss_dec (torch.Tensor): discriminator loss
             acc (mp.eval.accumulator.Accumulator): accumulator holding losses
         """
 
-        # content adversarial loss (Decoder)
+        # content adversarial loss (Discriminator)
         skip_connections_x, content_x, style_sample_x = self.model.forward_enc(x)
         domain_x = self.model.forward_con_dis(skip_connections_x, content_x)
         _, domain_index = torch.max(domain_code, dim=1)
@@ -460,7 +460,7 @@ class CASAgent(SegmentationAgent):
         loss_c_adv_d = loss_c_adv_d_real + loss_c_adv_d_dummy
         acc.add('loss_c_adv_d', float(loss_c_adv_d.detach().cpu()), count=len(x))
         
-        # GAN loss (Decoder)
+        # GAN loss (Discriminator)
         z = self.model.sample_z(style_sample_x.shape)
         if style_sample_x.is_cuda:
             z = z.to(style_sample_x.get_device())
@@ -483,10 +483,10 @@ class CASAgent(SegmentationAgent):
         acc.add('loss_gan_d', float(loss_gan_d.detach().cpu()), count=len(x))
 
         # combine losses
-        loss_dec = config['lambda_c_adv']*loss_c_adv_d + config['lambda_gan']*loss_gan_d
-        loss_dec.backward()
+        loss_disc = config['lambda_c_adv']*loss_c_adv_d + config['lambda_gan']*loss_gan_d
+        loss_disc.backward()
 
-        return loss_dec, acc
+        return loss_disc, acc
  
     def vae_loss(self, recons, input, mu, log_var, kld_weight=5e-3):
         r"""Computes the VAE loss function.

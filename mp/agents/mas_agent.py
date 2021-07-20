@@ -52,11 +52,6 @@ class MASAgent(SegmentationAgent):
 
         self.agent_state_dict['epoch'] = init_epoch
 
-        # Move model to GPUs
-        if len(device_ids) > 1:
-            self.model.set_data_parallel(device_ids)
-        print('Using GPUs:', device_ids)
-        
         for epoch in range(init_epoch, nr_epochs):
             self.agent_state_dict['epoch'] = epoch
             
