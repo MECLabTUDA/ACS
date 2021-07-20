@@ -1,6 +1,6 @@
 ### RESULTS
 
-# CAS
+# ACS
 nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 0 --experiment-name ours_0 --eval > ours_0.log
 nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 1 --experiment-name ours_1 --eval > ours_1.log
 nohup python acs_train.py --batch-size 40 --epochs 60 --device-ids 0 1 2 3 --combination 2 --experiment-name ours_2 --eval > ours_2.log
